@@ -1,0 +1,137 @@
+{
+ "uruchomienie": "2026-10-13 15:55",
+ "zapytania": [
+  {
+   "czas": "2026-10-13 15:55:09",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/station/sensors/638?page=0&size=500",
+   "status": 200,
+   "ms": 2876,
+   "bajty": 3070,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:12",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/4196?page=0&size=500",
+   "status": 200,
+   "ms": 192,
+   "bajty": 7466,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:13",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/4197?page=0&size=500",
+   "status": 400,
+   "ms": 446,
+   "bajty": 442,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:14",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/4198?page=0&size=500",
+   "status": 200,
+   "ms": 2039,
+   "bajty": 7519,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:16",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/station/sensors/646?page=0&size=500",
+   "status": 200,
+   "ms": 206,
+   "bajty": 2456,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:17",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/4229?page=0&size=500",
+   "status": 400,
+   "ms": 309,
+   "bajty": 442,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:18",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/21905?page=0&size=500",
+   "status": 200,
+   "ms": 2032,
+   "bajty": 7476,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:20",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/26986?page=0&size=500",
+   "status": 200,
+   "ms": 276,
+   "bajty": 7534,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:21",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/station/sensors/665?page=0&size=500",
+   "status": 200,
+   "ms": 581,
+   "bajty": 3385,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:22",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/4336?page=0&size=500",
+   "status": 200,
+   "ms": 398,
+   "bajty": 7463,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:23",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/4337?page=0&size=500",
+   "status": 400,
+   "ms": 324,
+   "bajty": 442,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:24",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/4338?page=0&size=500",
+   "status": 200,
+   "ms": 2387,
+   "bajty": 7512,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:27",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/station/sensors/17179?page=0&size=500",
+   "status": 200,
+   "ms": 324,
+   "bajty": 2127,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:28",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/28488?page=0&size=500",
+   "status": 200,
+   "ms": 317,
+   "bajty": 7479,
+   "api": "GIOŚ"
+  },
+  {
+   "czas": "2026-10-13 15:55:29",
+   "adres": "https://api.gios.gov.pl/pjp-api/v1/rest/data/getData/28489?page=0&size=500",
+   "status": 200,
+   "ms": 264,
+   "bajty": 7521,
+   "api": "GIOŚ"
+  }
+ ],
+ "pamiec_podreczna": [
+  {
+   "plik": "gios_stations.json",
+   "z_dysku": true,
+   "data_pliku": "2026-10-07 22:01"
+  },
+  {
+   "plik": "bdl_powiaty.json",
+   "z_dysku": true,
+   "data_pliku": "2026-10-07 22:02"
+  }
+ ]
+}

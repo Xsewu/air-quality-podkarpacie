@@ -1,0 +1,19 @@
+# Środowisko wirtualne
+.venv/
+
+# Surowe dane pobrane ze źródeł (odtwarzalne przez pipeline)
+data/raw/*
+!data/raw/.gitkeep
+
+# Baza SQLite (odtwarzana przez pipeline)
+db/*.sqlite
+db/*.sqlite-journal
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE / system
+.vscode/
+.idea/
+Thumbs.db

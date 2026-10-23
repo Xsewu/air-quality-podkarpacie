@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Powietrze Podkarpacia</title>
+  <meta name="description" content="PM10 i PM2.5 w czterech miastach Podkarpacia (2023–2025): sezony, pogoda, ranking miast, model jakości dnia i typy dni.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='10' cy='20' r='6' fill='%232a78d6'/%3E%3Ccircle cx='21' cy='12' r='8' fill='%23eb6834'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+        integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="uklad">
+  <!-- Pasek boczny: tytuł, wskaźnik, menu paneli -->
+  <aside class="boczny">
+    <div class="marka">
+      <p class="eyebrow">Techniki analizy danych</p>
+      <h1>Powietrze Podkarpacia</h1>
+      <p class="lead">PM10 i PM2.5 · 4 miasta · <span data-meta="zakres">2023–2025</span></p>
+    </div>
+    <div class="pole-boczne">
+      <span class="etykieta" id="lbl-wskaznik">Wskaźnik</span>
+      <div class="segment" role="radiogroup" aria-labelledby="lbl-wskaznik" id="wybor-wskaznik">
+        <button type="button" role="radio" data-wartosc="PM10" aria-checked="true">PM10</button>
+        <button type="button" role="radio" data-wartosc="PM2.5" aria-checked="false">PM2.5</button>
+      </div>
+    </div>
+    <nav class="menu" aria-label="Panele">
+      <a href="#akwizycja" data-panel="akwizycja"><span class="numer">A</span>Akwizycja danych</a>
+      <a href="#przygotowanie" data-panel="przygotowanie"><span class="numer">P</span>Przygotowanie danych</a>
+      <a href="#eksploracja" data-panel="eksploracja"><span class="numer">E</span>Eksploracja (EDA)</a>
+      <a href="#sezony" data-panel="sezony"><span class="numer">1</span>Sezony</a>
+      <a href="#pogoda" data-panel="pogoda"><span class="numer">2</span>Pogoda</a>
+      <a href="#ranking" data-panel="ranking"><span class="numer">3</span>Ranking i stacje</a>
+      <a href="#model" data-panel="model"><span class="numer">4</span>Model</a>
+      <a href="#typy" data-panel="typy"><span class="numer">5</span>Typy dni</a>
+    </nav>
+  </aside>
+
+  <main class="tresc">
+    <div id="komunikat" class="komunikat" hidden></div>
+
+    <!-- Panel A: akwizycja danych -->
+    <section class="panel" data-panel="akwizycja" aria-labelledby="h-akwizycja">
+      <div class="sekcja-naglowek">
+        <span class="numer">A</span>
+        <div>
+          <h2 id="h-akwizycja">Akwizycja danych</h2>
+          <p class="opis">Skąd pochodzą dane, w jakim formacie przychodzą i jak je pobieramy (TK01–TK03).</p>
+        </div>
+      </div>
+      <div class="przeplyw" id="przeplyw" aria-label="Przepływ danych"></div>
+      <div class="siatka-2" id="zrodla-karty"></div>
+      <figure class="karta siatka-odstep">
+        <figcaption><span class="tytul">Dziennik zapytań HTTP (TK03)</span>
+          <span class="pod" id="p-dziennik"></span></figcaption>
+        <div class="tabela-wrap tabela-przewijana"><table class="ranking dziennik" id="tabela-dziennik"></table></div>
+      </figure>
+      <p class="przypis" id="wygenerowano"></p>
+    </section>
+
+    <!-- Panel P: przygotowanie danych -->
+    <section class="panel" data-panel="przygotowanie" aria-labelledby="h-przygotowanie">
+      <div class="sekcja-naglowek">
+        <span class="numer">P</span>
+        <div>
+          <h2 id="h-przygotowanie">Przygotowanie danych</h2>
+          <p class="opis">Jak z surowych pomiarów powstają czyste dane do analizy (TK04).</p>
+        </div>
+      </div>
+      <div class="przeplyw" id="lejek" aria-label="Liczba danych po kolejnych krokach przygotowania"></div>
+      <figure class="karta">
+        <figcaption><span class="tytul">Kroki przygotowania</span>
+          <span class="pod">po kolei, tak jak robi to src/clean.py</span></figcaption>
+        <div class="tabela-wrap"><table class="ranking kroki" id="tabela-kroki"></table></div>
+      </figure>
+      <figure class="karta siatka-odstep">
+        <figcaption><span class="tytul">Kontrola jakości pomiarów</span>
+          <span class="pod">szukamy wartości niemożliwych i błędów czujników</span></figcaption>
+        <p class="przypis" id="reguly-kontrola"></p>
+        <div class="tabela-wrap"><table class="klasy filtracja" id="tabela-kontrola"></table></div>
+        <div id="przyklady-kontrola"></div>
+        <p class="przypis" id="przypis-kontrola"></p>
+      </figure>
+      <div class="siatka-2 siatka-odstep">
+        <figure class="karta" id="karta-doba">
+          <figcaption><span class="tytul" id="t-doba">Przykład: jedna doba przed i po kontroli</span>
+            <span class="pod" id="p-doba"></span></figcaption>
+          <div class="wykres"><canvas id="wykres-doba" role="img" aria-label="Wartości godzinowe jednej doby przed i po kontroli jakości"></canvas></div>
+          <p class="przypis" id="przypis-doba"></p>
+        </figure>
+        <figure class="karta">
+          <figcaption><span class="tytul">Baza SQLite po przygotowaniu</span>
+            <span class="pod">tabele w db/air.sqlite po czyszczeniu</span></figcaption>
+          <div class="tabela-wrap"><table class="ranking" id="tabela-bazy"></table></div>
+        </figure>
+      </div>
+      <figure class="karta siatka-odstep">
+        <figcaption><span class="tytul">Filtracja: tylko pełne dni</span>
+          <span class="pod" id="p-filtracja"></span></figcaption>
+        <div class="tabela-wrap"><table class="klasy filtracja" id="tabela-filtracja"></table></div>
+        <p class="przypis" id="przypis-filtracja"></p>
+      </figure>
+    </section>
+
+    <!-- Panel E: eksploracja danych (EDA) -->
+    <section class="panel" data-panel="eksploracja" aria-labelledby="h-eksploracja">
+      <div class="sekcja-naglowek">
+        <span class="numer">E</span>
+        <div>
+          <h2 id="h-eksploracja">Eksploracja danych (EDA)</h2>
+          <p class="opis">Jak wyglądają dane: typowe wartości, rozrzut i kształt rozkładu. Od tego zależy wybór metod.</p>
+        </div>
+      </div>
+      <div class="kafle" id="kafle-eda" aria-label="Najważniejsze obserwacje z rozkładów"></div>
+      <figure class="karta">
+        <figcaption><span class="tytul">Statystyki opisowe</span>
+          <span class="pod" id="p-opisowe"></span></figcaption>
+        <div class="tabela-wrap"><table class="ranking opisowe" id="tabela-opisowe"></table></div>
+        <p class="przypis" id="przypis-opisowe"></p>
+      </figure>
+      <div class="siatka-2 siatka-odstep">
+        <figure class="karta">
+          <figcaption><span class="tytul" id="t-histogram">Rozkład</span>
+            <span class="pod">liczba obserwacji w przedziałach · linie: średnia i mediana · ciemny słupek: dominanta</span></figcaption>
+          <div class="narzedzia">
+            <div class="segment segment-maly" role="radiogroup" aria-label="Zmienna" id="wybor-zmienna"></div>
+          </div>
+          <div class="wykres"><canvas id="wykres-histogram" role="img" aria-label="Histogram wybranej zmiennej"></canvas></div>
+          <p class="przypis" id="przypis-histogram"></p>
+        </figure>
+        <figure class="karta">
+          <figcaption><span class="tytul">Co z tego wynika dla analizy</span>
+            <span class="pod">dlaczego używamy takich metod</span></figcaption>
+          <ul class="wnioski" id="wnioski-eda"></ul>
+        </figure>
+      </div>
+      <figure class="karta siatka-odstep">
+        <figcaption><span class="tytul">Reguła 68–95–99,7 (3σ)</span>
+          <span class="pod">ile danych mieści się w 1, 2 i 3 odchyleniach od średniej · czerwone: inaczej niż w rozkładzie normalnym</span></figcaption>
+        <div class="tabela-wrap"><table class="ranking" id="tabela-3sigma"></table></div>
+        <p class="przypis" id="przypis-3sigma"></p>
+      </figure>
+      <figure class="karta siatka-odstep">
+        <figcaption><span class="tytul">Testy istotności (p-wartości)</span>
+          <span class="pod" id="p-testy"></span></figcaption>
+        <div class="tabela-wrap"><table class="ranking testy" id="tabela-testy"></table></div>
+        <p class="przypis" id="przypis-testy"></p>
+      </figure>
+    </section>
+
+    <!-- Panel 1: sezony -->
+    <section class="panel" data-panel="sezony" aria-labelledby="h-sezony">
+      <div class="sekcja-naglowek">
+        <span class="numer">1</span>
+        <div>
+          <h2 id="h-sezony">Sezon grzewczy a letni</h2>
+          <p class="opis">Ile pyłu jest w sezonie grzewczym (październik–marzec), a ile w letnim (kwiecień–wrzesień).</p>
+        </div>
+      </div>
+      <div class="kafle" id="kafle" aria-label="Najważniejsze liczby"></div>
+      <div class="siatka-2">
+        <figure class="karta">
+          <figcaption><span class="tytul" id="t-sezonowy">Średnie według sezonu</span>
+            <span class="pod" id="p-sezonowy">µg/m³ · średnia z dni 2023–2025</span></figcaption>
+          <div class="wykres"><canvas id="wykres-sezonowy" role="img" aria-label="Wykres słupkowy średnich sezonowych"></canvas></div>
+        </figure>
+        <figure class="karta">
+          <figcaption><span class="tytul" id="t-miesieczny">Rok miesiąc po miesiącu</span>
+            <span class="pod">µg/m³ · czerwona linia: średnia wszystkich miast · zacieniowano sezon grzewczy</span></figcaption>
+          <div class="wykres"><canvas id="wykres-miesieczny" role="img" aria-label="Wykres liniowy średnich miesięcznych"></canvas></div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Panel 2: pogoda -->
+    <section class="panel" data-panel="pogoda" aria-labelledby="h-pogoda">
+      <div class="sekcja-naglowek">
+        <span class="numer">2</span>
+        <div>
+          <h2 id="h-pogoda">Pogoda a stężenia pyłu</h2>
+          <p class="opis">Jak pogoda wiąże się ze stężeniem pyłu (dane z 4 miast razem).</p>
+        </div>
+      </div>
+      <div class="siatka-2">
+        <figure class="karta">
+          <figcaption>
+            <span class="tytul">Macierz korelacji</span>
+            <span class="pod">korelacja każdej pary · czerwony: rosną razem · niebieski: gdy jedno rośnie, drugie spada</span>
+          </figcaption>
+          <div class="narzedzia">
+            <div class="segment segment-maly" role="radiogroup" aria-label="Zakres sezonu" id="wybor-zakres">
+              <button type="button" role="radio" data-wartosc="cały rok" aria-checked="true">cały rok</button>
+              <button type="button" role="radio" data-wartosc="grzewczy" aria-checked="false">grzewczy</button>
+              <button type="button" role="radio" data-wartosc="letni" aria-checked="false">letni</button>
+            </div>
+          </div>
+          <div class="tabela-wrap"><table class="macierz" id="macierz-korelacji"></table></div>
+          <p class="przypis" id="przypis-korelacji"></p>
+        </figure>
+        <figure class="karta">
+          <figcaption>
+            <span class="tytul">PM10 a <span id="t-rozrzut">temperatura</span></span>
+            <span class="pod">każdy punkt to jeden dzień w jednym mieście · linia: norma dobowa 50 µg/m³</span>
+          </figcaption>
+          <div class="narzedzia">
+            <div class="segment segment-maly" role="radiogroup" aria-label="Zmienna na osi X" id="wybor-os">
+              <button type="button" role="radio" data-wartosc="temp" aria-checked="true">temperatura</button>
+              <button type="button" role="radio" data-wartosc="wiatr" aria-checked="false">prędkość wiatru</button>
+            </div>
+          </div>
+          <div class="wykres"><canvas id="wykres-rozrzut" role="img" aria-label="Wykres rozrzutu PM10 względem pogody"></canvas></div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Panel 3: ranking i mapa -->
+    <section class="panel" data-panel="ranking" aria-labelledby="h-miasta">
+      <div class="sekcja-naglowek">
+        <span class="numer">3</span>
+        <div>
+          <h2 id="h-miasta">Ranking miast i dane GUS</h2>
+          <p class="opis">Które miasto ma najgorsze powietrze i czy ma to związek z danymi GUS.</p>
+        </div>
+      </div>
+      <div class="siatka-ranking">
+        <figure class="karta">
+          <figcaption><span class="tytul">Ranking</span>
+            <span class="pod">miasta od najwyższego średniego PM10 · dane GUS dla powiatów</span></figcaption>
+          <div class="tabela-wrap"><table class="ranking" id="tabela-ranking"></table></div>
+          <p class="przypis" id="przypis-ranking"></p>
+        </figure>
+        <figure class="karta">
+          <figcaption><span class="tytul">Stacje pomiarowe</span>
+            <span class="pod" id="p-mapa">kliknij stację, aby zobaczyć średnie i ostatni odczyt z API GIOŚ</span></figcaption>
+          <div id="mapa" class="mapa" role="region" aria-label="Mapa stacji pomiarowych"></div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Panel 4: model -->
+    <section class="panel" data-panel="model" aria-labelledby="h-model">
+      <div class="sekcja-naglowek">
+        <span class="numer">4</span>
+        <div>
+          <h2 id="h-model">Czy pogoda przewiduje jakość dnia?</h2>
+          <p class="opis" id="opis-model">Klasyfikacja dnia jako dobry / umiarkowany / zły na podstawie pogody. Uczenie: 2023–2024, test: 2025.</p>
+        </div>
+      </div>
+      <div class="narzedzia narzedzia-sekcja">
+        <div class="segment" role="radiogroup" aria-label="Model" id="wybor-model"></div>
+      </div>
+      <div class="kafle kafle-model" id="kafle-model"></div>
+      <p class="przypis progi" id="progi"></p>
+      <div class="siatka-2">
+        <figure class="karta">
+          <figcaption><span class="tytul">Macierz pomyłek (rok 2025)</span>
+            <span class="pod">wiersze: prawdziwa klasa · kolumny: co przewidział model</span></figcaption>
+          <div class="tabela-wrap"><table class="macierz macierz-pomylek" id="macierz-pomylek"></table></div>
+          <div class="tabela-wrap"><table class="klasy" id="tabela-klasy"></table></div>
+        </figure>
+        <figure class="karta">
+          <figcaption><span class="tytul" id="t-waznosc">Ważność cech</span>
+            <span class="pod" id="p-waznosc"></span></figcaption>
+          <div class="wykres wykres-wysoki"><canvas id="wykres-waznosc" role="img" aria-label="Wykres ważności cech modelu"></canvas></div>
+          <p class="przypis" id="przypis-waznosc"></p>
+        </figure>
+      </div>
+      <figure class="karta siatka-odstep">
+        <figcaption><span class="tytul">Selekcja cech przed uczeniem</span>
+          <span class="pod">jak mocno cechy modelu są ze sobą powiązane (|r|) · obwódka: para zbyt podobna</span></figcaption>
+        <div class="tabela-wrap"><table class="macierz" id="macierz-cech"></table></div>
+        <p class="przypis" id="przypis-cech"></p>
+      </figure>
+    </section>
+
+    <!-- Panel 5: typy dni (klasteryzacja) -->
+    <section class="panel" data-panel="typy" aria-labelledby="h-klastry">
+      <div class="sekcja-naglowek">
+        <span class="numer">5</span>
+        <div>
+          <h2 id="h-klastry">Typy dni pogodowych</h2>
+          <p class="opis" id="opis-klastry">Dni pogrupowane algorytmem k-średnich wyłącznie według pogody; stężenie pyłu służy tylko do opisu grup.</p>
+        </div>
+      </div>
+      <div class="kafle" id="kafle-klastry"></div>
+      <figure class="karta">
+        <figcaption><span class="tytul">Profile typów dni</span>
+          <span class="pod" id="p-tabela-klastry">średnie z dni pogodowych · ciśnienie jako odchylenie od średniej stacji</span></figcaption>
+        <div class="tabela-wrap"><table class="ranking klastry" id="tabela-klastry"></table></div>
+      </figure>
+      <div class="siatka-2 siatka-odstep">
+        <figure class="karta">
+          <figcaption><span class="tytul" id="t-klastry-pm">PM10 w typach dni</span>
+            <span class="pod" id="p-klastry-pm">ciemny słupek: kwartyle 25–75% · jasny: 10–90% · kreska: mediana · romb: średnia</span></figcaption>
+          <div class="wykres"><canvas id="wykres-klastry-pm" role="img" aria-label="Rozkład stężenia pyłu w typach dni"></canvas></div>
+        </figure>
+        <figure class="karta">
+          <figcaption><span class="tytul">Kiedy występują typy dni</span>
+            <span class="pod">udział typów w dniach danego miesiąca (2023–2025, 3 stacje IMGW)</span></figcaption>
+          <div class="wykres"><canvas id="wykres-klastry-miesiace" role="img" aria-label="Udział typów dni w miesiącach"></canvas></div>
+        </figure>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
+          integrity="sha512-WoViKhKD4qI2WruSZqv9+kvM4WfFhUMQCLN4QlDTt5aU56fLQy2gYoxWIqlEnXqJy/+Ac5q/hk1oWfqnMDhwMA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+          integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="app.js"></script>
+</body>
+</html>
