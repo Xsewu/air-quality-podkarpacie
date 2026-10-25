@@ -14,7 +14,7 @@ Wrocławiu i Gdańsku**, w latach **2023–2025**. Porównujemy go z pogodą (IM
 | TK02 | Dane z plików | [`src/fetch_local.py`](src/fetch_local.py) – archiwa GIOŚ (XLSX), dane IMGW (CSV) |
 | TK03 | Dane z internetu | [`src/fetch_api.py`](src/fetch_api.py) – API GIOŚ (JSON-LD) |
 | TK04 | Analiza, czyszczenie, zapis | [`src/quality.py`](src/quality.py), [`src/clean.py`](src/clean.py), [`src/eda.py`](src/eda.py), [`src/analyze.py`](src/analyze.py), [`src/significance.py`](src/significance.py), [`src/cluster.py`](src/cluster.py) |
-| TK05 | Prezentacja wyników | [`src/export.py`](src/export.py), strona [`web/`](web/index.html), okno aplikacji [`src/app.py`](src/app.py) |
+| TK05 | Prezentacja wyników | [`src/export.py`](src/export.py), strona [`web/`](web/index.html), okno aplikacji i plik .exe w [`src/main.py`](src/main.py) |
 
 ## Uruchomienie
 
@@ -25,20 +25,24 @@ python -m venv .venv
 .venv\Scripts\activate            # Windows; Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 
-python -m src.main                # wszystko: pobranie → czyszczenie → EDA → analiza → testy → klastry → eksport
-python -m src.app                 # strona w osobnym oknie
-python -m http.server -d web      # albo strona w przeglądarce: http://localhost:8000
+python -m src.main                # okno ze stroną; przy pierwszym uruchomieniu najpierw liczy wszystko
+python -m src.main --przelicz     # policz od nowa: pobranie → czyszczenie → EDA → analiza → testy → klastry → eksport
+python -m src.main --exe          # plik .exe (najpierw: pip install pyinstaller)
+python -m http.server -d web      # albo strona w zwykłej przeglądarce: http://localhost:8000
 ```
+
+Jeden plik [`src/main.py`](src/main.py) liczy wyniki, otwiera okno i buduje .exe. Gdy wyniki już są, nie liczy
+ich drugi raz, tylko od razu otwiera okno. `--bez-okna` pomija okno (np. `--przelicz --bez-okna`).
 
 - Pierwsze uruchomienie pobiera dane do `data/raw/` (kilka minut). Kolejne korzystają z plików na dysku.
   Pobrane pliki nigdy nie są nadpisywane.
 - Każde uruchomienie pobiera też najnowsze pomiary z API GIOŚ – w panelu 3 widać je na mapie i na tle lat 2023–2025.
 - Strony nie da się otworzyć prosto z dysku (`file://`), bo przeglądarka zablokuje pliki z danymi.
-- `python -m src.app` otwiera stronę w oknie Edge (lub Chrome) bez paska adresu. Zamknięcie okna kończy program.
-- **Plik .exe** (Windows): `pip install pyinstaller`, a potem `python -m src.build_exe`. Powstaje
+- Okno to strona w Edge (lub Chrome) bez paska adresu. Zamknięcie okna kończy program.
+- **Plik .exe** (Windows): `pip install pyinstaller`, a potem `python -m src.main --exe`. Powstaje
   `dist/Powietrze w Polsce.exe` (ok. 8 MB) z oknem aplikacji i całą stroną z danymi w środku – działa też
   na komputerze bez Pythona (potrzebny Edge albo Chrome), więc można go komuś wysłać. Dane w pliku to stan
-  z chwili budowania: po `python -m src.main` trzeba go zbudować od nowa. Windows może ostrzec przed programem
+  z chwili budowania: po `--przelicz` trzeba go zbudować od nowa. Plik .exe tylko otwiera okno – niczego nie liczy. Windows może ostrzec przed programem
   od nieznanego wydawcy – wtedy „Więcej informacji” → „Uruchom mimo to”.
 - Etapy można uruchamiać osobno, np. `python -m src.analyze` (analiza, testy, klastry i eksport potrzebują bazy
   `db/air.sqlite`).
@@ -420,9 +424,7 @@ air-quality-podkarpacie/   # nazwa katalogu z pierwszej wersji projektu (Podkarp
 │   ├── cluster.py       # TK04 – typy dni pogodowych
 │   ├── plots.py         # wspólny wygląd wykresów PNG
 │   ├── export.py        # TK05 – dane dla strony (w kolejności paneli)
-│   ├── app.py           # TK05 – okno aplikacji
-│   ├── build_exe.py     # TK05 – budowa pliku .exe z oknem aplikacji
-│   └── main.py          # uruchamia wszystko po kolei
+│   └── main.py          # TK05 – jedyny punkt wejścia: liczenie, okno ze stroną, plik .exe
 ├── web/                 # strona: index.html, app.js (sekcje w kolejności paneli), style.css, data/*.json
 ├── requirements.txt
 └── README.md

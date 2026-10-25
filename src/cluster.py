@@ -10,16 +10,14 @@ Kroki (funkcja run na dole pliku):
 import json
 import sqlite3
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
 from sklearn.metrics import adjusted_rand_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
 
 from src import config
-from src.plots import DIVERGING, GRID, SURFACE, TEXT, TEXT_MUTED, save
+from src.plots import plot_k, plot_pca, plot_pm, plot_profile
 
 FEATURES = ["temp_sr", "wiatr_sr", "opad", "wilgotnosc", "cisnienie"]
 FEATURE_NAMES = {"temp_sr": "temperatura", "wiatr_sr": "prędkość wiatru", "opad": "opad",
@@ -132,94 +130,6 @@ def profile(weather: pd.DataFrame, days: pd.DataFrame, X: np.ndarray, k: int) ->
             "cross": cross, "ari": round(ari, 3), "stations": stations, "quartiles": quart}
 
 
-# --- Wykresy ------------------------------------------------------------------
-
-def plot_k(scores: pd.DataFrame, k: int) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
-    for ax, col, title in [(axes[0], "silhouette", "Silhouette (wyżej = lepiej)"),
-                           (axes[1], "inercja", "Inercja – metoda łokcia")]:
-        ax.plot(scores["k"], scores[col], color="#2a78d6", lw=2, marker="o", ms=6)
-        best = scores[scores["k"] == k].iloc[0]
-        ax.plot(best["k"], best[col], marker="o", ms=12, mfc="none", mec=TEXT, mew=2)
-        ax.annotate(f"k = {k}", (best["k"], best[col]), xytext=(12, -16), textcoords="offset points", color=TEXT)
-        ax.set_xticks(scores["k"])
-        ax.set_xlabel("liczba klastrów k")
-        ax.set_title(title)
-    save(fig, "klastry_wybor_k.png")
-
-
-def plot_profile(res: dict) -> None:
-    prof, z = res["profile"], res["z"]
-    labels = [f"{r.klaster}. {r.nazwa}" for r in prof.itertuples()]
-    fig, ax = plt.subplots(figsize=(9, 0.7 * len(prof) + 1.6))
-    lim = max(1.5, float(np.abs(z.values).max()))
-    ax.imshow(z.values, cmap=DIVERGING, vmin=-lim, vmax=lim, aspect="auto")
-    for (i, j), v in np.ndenumerate(z.values):
-        phys = prof.iloc[i][FEATURES[j]]
-        unit = {"temp_sr": "°C", "wiatr_sr": "m/s", "opad": "mm", "wilgotnosc": "%", "cisnienie": "hPa"}[FEATURES[j]]
-        ax.text(j, i, f"{phys:+.1f} {unit}" if FEATURES[j] == "cisnienie" else f"{phys:.1f} {unit}",
-                ha="center", va="center", fontsize=9, color="white" if abs(v) > 0.9 * lim * 0.6 else TEXT)
-    ax.set_xticks(range(len(FEATURES)), [FEATURE_NAMES[f] for f in FEATURES])
-    ax.set_yticks(range(len(prof)), labels)
-    ax.grid(False)
-    for s in ax.spines.values():
-        s.set_visible(False)
-    ax.set_title("Profil klastrów: średnie cech (kolor = z-score względem wszystkich dni)")
-    save(fig, "klastry_profil.png")
-
-
-def plot_pm(res: dict) -> None:
-    prof, merged = res["profile"], res["merged"]
-    fig, ax = plt.subplots(figsize=(9, 4.2))
-    data = [merged.loc[merged["klaster"] == c, "pm10"].dropna().values for c in prof["klaster"]]
-    bp = ax.boxplot(data, positions=range(len(data)), widths=0.55, showfliers=False, patch_artist=True,
-                    medianprops={"color": TEXT, "lw": 1.5}, whiskerprops={"color": TEXT_MUTED},
-                    capprops={"color": TEXT_MUTED})
-    for patch, color in zip(bp["boxes"], prof["kolor"]):
-        patch.set_facecolor(color)
-        patch.set_edgecolor(SURFACE)
-    ax.scatter(range(len(data)), prof["pm10_srednia"], color=TEXT, marker="D", s=22, zorder=3, label="średnia")
-    ax.axhline(config.PM10_CLASS_BINS[1], color=TEXT_MUTED, lw=1, ls="--")
-    ax.text(len(data) - 0.5, config.PM10_CLASS_BINS[1], "norma dobowa 50 ", ha="right", va="bottom",
-            color=TEXT_MUTED, fontsize=8)
-    ax.set_xticks(range(len(data)), [f"{r.klaster}. {r.nazwa}\n" + f"{r.dni_zla_pct:.1f}".replace(".", ",") + "% dni złych"
-                                     for r in prof.itertuples()], fontsize=9)
-    ax.set_ylabel("PM10 [µg/m³]")
-    ax.set_ylim(bottom=0)
-    ax.set_title("PM10 w typach dni pogodowych (pudełko: kwartyle, wąsy: 1,5 IQR)")
-    ax.legend(frameon=False, loc="upper right")
-    ax.grid(axis="x", visible=False)
-    save(fig, "klastry_pm10.png")
-
-
-def plot_pca(res: dict, X: np.ndarray) -> None:
-    prof, weather = res["profile"], res["weather"]
-    pca = PCA(n_components=2, random_state=RANDOM_STATE)
-    P = pca.fit_transform(X)
-    fig, ax = plt.subplots(figsize=(8, 6))
-    for r in prof.itertuples():
-        mask = (weather["klaster"] == r.klaster).values
-        ax.scatter(P[mask, 0], P[mask, 1], s=7, alpha=0.35, color=r.kolor, linewidths=0, label=f"{r.klaster}. {r.nazwa}")
-    # Przy k > 3 kolory w rozrzucie nie wystarczają – centroidy z etykietami
-    for i, r in enumerate(prof.itertuples()):
-        mask = (weather["klaster"] == r.klaster).values
-        cx, cy = P[mask, 0].mean(), P[mask, 1].mean()
-        ax.scatter(cx, cy, s=160, color=r.kolor, edgecolors=SURFACE, linewidths=2.5, zorder=3)
-        # Etykiety na przemian nad punktem (w prawo) i pod nim (w lewo), żeby bliskie centroidy się nie nakładały
-        above = i % 2 == 0
-        ax.annotate(f"{r.klaster}. {r.nazwa}", (cx, cy), xytext=(10, 10) if above else (-10, -14),
-                    textcoords="offset points", ha="left" if above else "right", va="bottom" if above else "top",
-                    fontsize=10, fontweight="bold", color=TEXT, zorder=4,
-                    arrowprops={"arrowstyle": "-", "color": TEXT_MUTED, "lw": 1, "shrinkB": 7},
-                    bbox={"boxstyle": "round,pad=0.25", "fc": SURFACE, "ec": GRID, "alpha": 0.9})
-    ev = pca.explained_variance_ratio_ * 100
-    ax.set_xlabel(f"PC1 ({ev[0]:.0f}% wariancji) – pozostałe {100 - ev.sum():.0f}% (m.in. opad vs wiatr) poza rzutem")
-    ax.set_ylabel(f"PC2 ({ev[1]:.0f}% wariancji)")
-    ax.set_title(f"Dni pogodowe w rzucie PCA ({len(config.IMGW_STATIONS)} stacje IMGW × 2023–2025)")
-    ax.legend(frameon=False, markerscale=3, loc="best", fontsize=9)
-    save(fig, "klastry_pca.png")
-
-
 def run() -> dict:
     weather, days = load()
     X = feature_matrix(weather)
@@ -255,9 +165,9 @@ def run() -> dict:
     con.close()
 
     plot_k(scores, k)
-    plot_profile(res)
+    plot_profile(res, FEATURE_NAMES)
     plot_pm(res)
-    plot_pca(res, X)
+    plot_pca(res, X, RANDOM_STATE)
     for r in prof.itertuples():
         print(f"  {r.klaster}. {r.nazwa}: {r.n_dni_pogodowych} dni, PM10 {r.pm10_srednia}, dni złe {r.dni_zla_pct}%")
     print(f"  ARI (klaster vs klasa jakości): {res['ari']}")

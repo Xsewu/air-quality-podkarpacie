@@ -95,11 +95,6 @@ body {
 }
 h1 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -0.01em; color: #ffffff; }
 .lead { margin: 8px 0 0; font-size: 14px; color: #ffffff; }
-.pole-boczne { display: flex; flex-direction: column; gap: 8px; }
-.etykieta { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #ffffff; opacity: 0.92; }
-.boczny .segment { background: rgba(255, 255, 255, 0.16); display: flex; }
-.boczny .segment button { color: #ffffff; flex: 1; }
-.boczny .segment button[aria-checked="true"] { background: #ffffff; color: var(--header-bg); }
 .menu { display: flex; flex-direction: column; gap: 2px; }
 .menu a {
   display: flex; align-items: center; gap: 12px; padding: 10px 12px; color: #ffffff;
@@ -141,7 +136,11 @@ h1 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -0.01em; col
 .klasy tr.suma td { font-weight: 700; border-top: 2px solid var(--border); }
 
 /* Panele */
-.sekcja-naglowek { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+.sekcja-naglowek { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+/* Przełącznik PM10 / PM2.5 – po prawej w nagłówku panelu, który z niego korzysta */
+.pole-wskaznik { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.pole-wskaznik[hidden] { display: none; }
+.etykieta { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
 .numer {
   flex: 0 0 auto; width: 34px; height: 34px; border-radius: 0; display: grid; place-items: center;
   background: var(--text-primary); color: var(--surface-1); font-weight: 700; font-size: 15px; margin-top: 2px;
@@ -312,10 +311,6 @@ th:first-child, td:first-child { text-align: left; }
 .zakladki.zakladki-p { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .szczegoly-p [role=tabpanel]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .szczegoly-p .tabela-wrap { max-height: 340px; overflow: auto; }
-@media (prefers-reduced-motion: no-preference) {
-  .lejek-wejscie, .lejek-zmiana, .ld-wiersz { animation: wjazd 0.35s ease-out both; animation-delay: calc(var(--i, 0) * 120ms); }
-  .ld-pasek i { transform-origin: left; animation: rysuj 0.6s ease-out both; animation-delay: calc(200ms + var(--i, 0) * 120ms); }
-}
 
 /* Panel A: akwizycja danych – schemat „Droga danych” i podgląd surowych danych.
    Kolory grup: pliki z archiwów (TK02) turkus, zapytania do API (TK03) błękit; wspólny strumień – akcent.
@@ -353,7 +348,6 @@ th:first-child, td:first-child { text-align: left; }
 .wezel {
   position: relative; display: grid; grid-template-columns: 66px minmax(0, 1fr) auto;
   background: var(--surface-1); border: 1px solid var(--border); box-shadow: var(--shadow);
-  transition: border-color 0.15s;
 }
 .wezel > .format { font-size: 13px; padding: 8px 4px; }
 .wezel-tresc { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 9px 4px 10px 12px; }
@@ -388,7 +382,7 @@ th:first-child, td:first-child { text-align: left; }
 .e-wartosc { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
 .e-etykieta { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 .e-opis { font-size: 12px; color: var(--text-muted); }
-.etap-link { border-top-color: var(--accent); transition: background-color 0.15s; }
+.etap-link { border-top-color: var(--accent); }
 .etap-link .e-wartosc { color: var(--accent); }
 .etap-link:hover, .etap-link:focus-visible { background: var(--surface-2); }
 .etap-link:hover .e-etykieta { text-decoration: underline; }
@@ -428,14 +422,6 @@ th:first-child, td:first-child { text-align: left; }
   .etap { flex: 1 1 0; }
   .grot { left: auto; right: 100%; top: 50%; transform: translateY(-50%); }
 }
-/* Pojawienie się schematu: źródła po kolei, dopływy, potem etapy */
-@media (prefers-reduced-motion: no-preference) {
-  .wezel { animation: wjazd 0.35s ease-out both; animation-delay: calc(var(--i, 0) * 70ms); }
-  .wezel::before { animation: rysuj 0.3s ease-out both; animation-delay: calc(180ms + var(--i, 0) * 70ms); }
-  .etap { animation: wjazd 0.35s ease-out both; animation-delay: calc(380ms + var(--i, 0) * 110ms); }
-}
-@keyframes wjazd { from { opacity: 0; transform: translateY(6px); } }
-@keyframes rysuj { from { transform: scaleX(0); } }
 
 /* Podgląd surowych danych: zakładki (po jednej na źródło) i panel wybranego źródła */
 .podglad { container-type: inline-size; }
@@ -480,7 +466,6 @@ table.surowe th { color: var(--text-secondary); }
 .progi { margin: 0 0 12px; }
 .filtracja td.brak-dni { font-weight: 700; color: var(--class-zla); }
 
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 
 /* Paleta strony: akcent w przyciskach i odznakach, prostokątne elementy Leaflet */
 .segment button[aria-checked="true"] { background: var(--accent); color: var(--on-accent); box-shadow: none; }

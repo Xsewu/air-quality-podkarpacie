@@ -12,19 +12,12 @@
 </head>
 <body>
 <div class="uklad">
-  <!-- Pasek boczny: tytuł, wskaźnik, menu paneli -->
+  <!-- Pasek boczny: tytuł i menu paneli -->
   <aside class="boczny">
     <div class="marka">
       <p class="eyebrow">Techniki analizy danych</p>
       <h1>Powietrze w Polsce</h1>
       <p class="lead">PM10 i PM2.5 · 4 miasta · <span data-meta="zakres">2023–2025</span></p>
-    </div>
-    <div class="pole-boczne">
-      <span class="etykieta" id="lbl-wskaznik">Wskaźnik</span>
-      <div class="segment" role="radiogroup" aria-labelledby="lbl-wskaznik" id="wybor-wskaznik">
-        <button type="button" role="radio" data-wartosc="PM10" aria-checked="true">PM10</button>
-        <button type="button" role="radio" data-wartosc="PM2.5" aria-checked="false">PM2.5</button>
-      </div>
     </div>
     <nav class="menu" aria-label="Panele">
       <a href="#akwizycja" data-panel="akwizycja"><span class="numer">A</span>Akwizycja danych</a>
@@ -40,6 +33,14 @@
 
   <main class="tresc">
     <div id="komunikat" class="komunikat" hidden></div>
+    <!-- Przełącznik wskaźnika: jeden element, przenoszony do nagłówka panelu, w którym coś zmienia -->
+    <div class="pole-wskaznik" id="pole-wskaznik" hidden>
+      <span class="etykieta" id="lbl-wskaznik">Wskaźnik</span>
+      <div class="segment segment-maly" role="radiogroup" aria-labelledby="lbl-wskaznik" id="wybor-wskaznik">
+        <button type="button" role="radio" data-wartosc="PM10" aria-checked="true">PM10</button>
+        <button type="button" role="radio" data-wartosc="PM2.5" aria-checked="false">PM2.5</button>
+      </div>
+    </div>
 
     <!-- Panel A: akwizycja danych -->
     <section class="panel" data-panel="akwizycja" aria-labelledby="h-akwizycja">

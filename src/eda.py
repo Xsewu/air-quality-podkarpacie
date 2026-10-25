@@ -10,12 +10,11 @@ Wyniki: tabele wyniki_opisowe, wyniki_histogramy, wyniki_regula_3sigma i wykres 
 """
 import sqlite3
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from src import config
-from src.plots import TEXT, save
+from src.plots import plot_distributions
 
 # Zmienna: (nazwa, jednostka, szerokość przedziału histogramu, czy współczynnik zmienności ma sens).
 # Temperatura w °C nie ma prawdziwego zera, więc stosunek odchylenia do średniej nic dla niej nie znaczy.
@@ -93,27 +92,6 @@ def sigma_rule(data: dict[str, pd.DataFrame], stats: pd.DataFrame) -> pd.DataFra
                          **{f"w_{k}_sigma_pct": 100 * (distance <= k).mean() for k in (1, 2, 3)},
                          "poza_3_sigma": int((distance > 3).sum()), "n": len(v)})
     return pd.DataFrame(rows)
-
-
-def plot_distributions(stats: pd.DataFrame, hist: pd.DataFrame) -> None:
-    """Histogramy wszystkich zmiennych: średnia (linia ciągła), mediana (przerywana), dominanta (ciemny słupek)."""
-    fig, axes = plt.subplots(2, 4, figsize=(16, 7))
-    fig.subplots_adjust(hspace=0.6, wspace=0.22, top=0.85, left=0.04, right=0.99)
-    for ax, (_, st) in zip(axes.flat, stats.iterrows()):
-        h = hist[hist["zmienna"] == st["zmienna"]]
-        modal = h["od"] == st["dominanta_od"]
-        ax.bar(h["od"], h["n"], width=h["do"] - h["od"], align="edge", color=np.where(modal, "#1c5cab", "#86b6ef"))
-        ax.axvline(st["srednia"], color="#eb6834", lw=2, label="średnia")
-        ax.axvline(st["mediana"], color=TEXT, lw=1.5, ls="--", label="mediana")
-        if st["skosnosc"] >= 1:  # długi ogon: oś do 99,5 percentyla, żeby było widać kształt
-            ax.set_xlim(h["od"].min(), np.interp(0.995, h["n"].cumsum() / h["n"].sum(), h["do"]))
-        ax.set_title(f"{st['zmienna']} [{st['jednostka']}] · skośność {st['skosnosc']:.2f}\n{st['ksztalt']}", fontsize=9.5)
-        ax.grid(axis="x", visible=False)
-    axes.flat[-1].axis("off")
-    axes.flat[0].legend(fontsize=8, frameon=False)
-    fig.suptitle("Rozkłady zmiennych (EDA): pył – dni-miasto, pogoda – dni-stacja; ciemny słupek = przedział modalny",
-                 x=0.01, ha="left", fontweight="bold", color=TEXT)
-    save(fig, "rozklady.png")
 
 
 def run() -> None:

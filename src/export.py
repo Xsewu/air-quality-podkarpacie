@@ -98,9 +98,10 @@ def export_acquisition(con) -> None:
     station = next(iter(config.IMGW_STATIONS))
     with zipfile.ZipFile(imgw / "terminowe" / f"{last_year}_{station}_s.zip") as zf:
         csv_file = io.TextIOWrapper(zf.open(f"s_t_{station}_{last_year}.csv"), encoding=config.IMGW_ENCODING)
-        first_row = next(csv.reader(csv_file))
+        # 13 terminów (00–12 UTC), żeby było widać opad WO6G – podawany tylko co 6 godzin
+        first_rows = [row for _, row in zip(range(13), csv.reader(csv_file))]
     shown = [i for i, name in enumerate(header)
-             if name in ("NSP", "POST", "ROK", "MC", "DZ", "GG", "KRWR", "FWR", "TEMP", "WLGW", "PPPS", "WO6G")]
+             if name in ("NSP", "POST", "ROK", "MC", "DZ", "GG", "KRWR", "FWR", "TEMP", "WLGW", "PPPS", "WO6G", "WWO6G")]
     # API GIOŚ – fragmenty zapisanych odpowiedzi JSON
     api_stations = json.loads((api / "gios_stations.json").read_text(encoding="utf-8"))
     snapshots = sorted(api.glob("gios_current_*.json"))
@@ -139,8 +140,8 @@ def export_acquisition(con) -> None:
                     ["MB", round(sum(f["kB"] for f in imgw_files) / 1024, 1)],
                     ["terminów z pomiarem wiatru", weather_hours]],
          "pliki": imgw_files,
-         "probka": {"typ": "tabela", "opis": f"s_t_{station}_{last_year}.csv – 12 ze {len(header)} kolumn; nazwy z pliku s_t_nagłówek.csv",
-                    "wiersze": [[header[i] for i in shown], [first_row[i].strip() for i in shown]]}},
+         "probka": {"typ": "tabela", "opis": f"s_t_{station}_{last_year}.csv – pierwsze 13 godzin, {len(shown)} ze {len(header)} kolumn; WWO6G = status opadu: 8 brak pomiaru (opad mierzony co 6 h), 9 brak zjawiska (nie padało); nazwy z pliku s_t_nagłówek.csv",
+                    "wiersze": [[header[i] for i in shown]] + [[row[i].strip() for i in shown] for row in first_rows]}},
         {"id": "gios_api", "nazwa": "GIOŚ – API jakości powietrza v1", "tk": "TK03", "dostep": "zapytania HTTP",
          "url": config.GIOS_API_URL, "znacznik": "JSON-LD",
          "format": "JSON-LD (nagłówek Accept: application/ld+json) · stronicowanie page/size",
@@ -157,7 +158,7 @@ def export_acquisition(con) -> None:
     ]
     flow = [
         ["źródła danych", "3", "2 archiwa plików + API"],
-        ["surowe pliki", f"{round((sum(f['kB'] for s in sources for f in s['pliki'])) / 1024)} MB", "data/raw/"],
+        ["surowe pliki", f"{round((sum(f['kB'] for s in sources for f in s['pliki'])) / 1024)} MB", ""],
         ["pomiary godzinowe", thousands(pm_hours + weather_hours), "PM + pogoda, wczytane z plików"],
         # Ostatni krok to odnośnik do panelu P, w którym dane są czyszczone
         ["przygotowanie danych", "dalej →", "kontrola jakości, agregacja do dób, filtracja", "#przygotowanie"],

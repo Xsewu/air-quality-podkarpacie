@@ -85,7 +85,7 @@ function pokazBlad(err) {
   const el = $("#komunikat");
   el.hidden = false;
   el.innerHTML = `<strong>Nie udało się wczytać danych.</strong> ${err.message}<br>
-    Uruchom pipeline (<code>python -m src.main</code>) i serwer (<code>python -m http.server -d web</code>),
+    Uruchom <code>python -m src.main</code> (liczy wyniki i otwiera okno) albo serwer <code>python -m http.server -d web</code>,
     a następnie otwórz <code>http://localhost:8000</code>. Otwarcie pliku bezpośrednio z dysku blokuje pobieranie JSON.`;
 }
 
@@ -102,7 +102,7 @@ function ustawChartJs() {
   Chart.defaults.plugins.tooltip.padding = 10;
   Chart.defaults.plugins.tooltip.cornerRadius = 0;
   Chart.defaults.maintainAspectRatio = false;
-  Chart.defaults.animation.duration = 300;
+  Chart.defaults.animation = false;  // bez animacji wykresów
 }
 
 function nowyWykres(id, konfiguracja) {
@@ -165,6 +165,8 @@ const linieRozkladu = {
 // --- Nawigacja: jeden panel widoczny naraz, wybór z menu (adres #panel) ----------------------
 const PANELE = ["akwizycja", "przygotowanie", "eksploracja", "sezony", "pogoda", "ranking", "klasy", "typy"];
 let mapaGotowa = false;
+// Panele, w których przełącznik PM10 / PM2.5 coś zmienia (A, P i klasy dni liczone z PM10 – nie)
+const PANELE_Z_WSKAZNIKIEM = ["eksploracja", "sezony", "pogoda", "ranking", "typy"];
 const panelZAdresu = () => (PANELE.includes(location.hash.slice(1)) ? location.hash.slice(1) : PANELE[0]);
 
 function pokazPanel(id) {
@@ -173,6 +175,9 @@ function pokazPanel(id) {
     if (a.dataset.panel === id) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
+  const pole = $("#pole-wskaznik");
+  pole.hidden = !PANELE_Z_WSKAZNIKIEM.includes(id);
+  if (!pole.hidden) document.querySelector(`.panel[data-panel="${id}"] .sekcja-naglowek`).append(pole);
   // Mapa powstaje przy pierwszym otwarciu panelu – Leaflet potrzebuje widocznego kontenera
   if (id === "ranking" && !mapaGotowa) {
     zbudujMape();
@@ -216,11 +221,10 @@ function schematZrodelHtml(zrodla) {
   const [pierwszy, ostatni] = [wezly[0], wezly.at(-1)];
   const szyna = (i) => (pierwszy === ostatni ? "" : i === pierwszy ? "szyna-od" : i === ostatni ? "szyna-do"
     : i > pierwszy && i < ostatni ? "szyna" : "");
-  let nr = 0;
   return wiersze.map((w, i) => {
     if (!w.id) return `<p class="grupa-etykieta ${w.tk.toLowerCase()} ${szyna(i)}"><i aria-hidden="true"></i>${esc(w.nazwa)}</p>`;
     const domena = new URL(w.url).host;
-    return `<div class="wezel ${w.tk.toLowerCase()} ${szyna(i)}" data-zrodlo="${esc(w.id)}" style="--i:${nr++}">
+    return `<div class="wezel ${w.tk.toLowerCase()} ${szyna(i)}" data-zrodlo="${esc(w.id)}">
         <span class="format">${esc(znacznikFormatu(w))}</span>
         <div class="wezel-tresc">
           <button type="button" class="wezel-nazwa" aria-controls="podglad-${esc(w.id)}" title="Pokaż surowe dane">${esc(w.nazwa)}</button>
@@ -236,8 +240,8 @@ function schematZrodelHtml(zrodla) {
 // Prawa część schematu: etapy z przeplyw (bez pierwszego – źródła są narysowane obok); ostatni prowadzi do panelu P
 function schematEtapowHtml(etapy) {
   return etapy.map(([etap, wartosc, opis, adres], i) => {
-    const tresc = `<span class="e-wartosc">${esc(wartosc)}</span><span class="e-etykieta">${esc(etap)}</span><span class="e-opis">${esc(opis)}</span>`;
-    return `<li class="etap" style="--i:${i}">${GROT}` +
+    const tresc = `<span class="e-wartosc">${esc(wartosc)}</span><span class="e-etykieta">${esc(etap)}</span>${opis ? `<span class="e-opis">${esc(opis)}</span>` : ""}`;
+    return `<li class="etap">${GROT}` +
       (adres ? `<a class="etap-pole etap-link" href="${esc(adres)}">${tresc}</a>` : `<div class="etap-pole">${tresc}</div>`) + "</li>";
   }).join("");
 }
@@ -285,8 +289,7 @@ function wybierzZrodlo(id, { fokus = false, przewin = false } = {}) {
   document.querySelectorAll("#panele-zrodel [role=tabpanel]").forEach((p) => { p.hidden = p.id !== `podglad-${id}`; });
   document.querySelectorAll("#schemat-zrodla .wezel").forEach((w) => w.classList.toggle("wybrany", w.dataset.zrodlo === id));
   if (przewin) {
-    const ruch = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
-    $("#podglad").scrollIntoView({ behavior: ruch, block: "nearest" });
+    $("#podglad").scrollIntoView({ block: "nearest" });
   }
 }
 
@@ -336,7 +339,7 @@ function lejekHtml(P) {
   let zostaje = siatka;
   const wiersze = L.ubytki.map(([powod, n, opis], i) => {
     const przed = zostaje; zostaje -= n;
-    return `<li class="ld-wiersz ld-ubytek" style="--i:${i + 1}">
+    return `<li class="ld-wiersz ld-ubytek">
       <span class="ld-pasek" aria-hidden="true"><i style="width:${proc(zostaje)}"></i><i class="duch" style="left:${proc(zostaje)};width:${proc(przed - zostaje)}"></i></span>
       <span class="ld-tekst"><b class="ubytek">−${tysiace(n)}</b> ${esc(powod)} <small>${esc(opis)}</small></span></li>`;
   }).join("");
@@ -350,11 +353,11 @@ function lejekHtml(P) {
     </div>
     <div class="lejek-zmiana">${GROT}<span><b>godziny → doby</b>średnia z min. ${P.min_godzin} z 24 h</span></div>
     <ol class="lejek-dni" aria-label="Dni-miasto: od pełnej siatki do danych do analizy">
-      <li class="ld-wiersz ld-start" style="--i:0">
+      <li class="ld-wiersz ld-start">
         <span class="ld-pasek" aria-hidden="true"><i style="width:100%"></i></span>
         <span class="ld-tekst"><b>${tysiace(siatka)}</b> dni-miasto <small>${esc(opisSiatki)}</small></span></li>
       ${wiersze}
-      <li class="ld-wiersz ld-wynik" style="--i:${L.ubytki.length + 1}">
+      <li class="ld-wiersz ld-wynik">
         <span class="ld-pasek" aria-hidden="true"><i style="width:${proc(wynik)}"></i></span>
         <span class="ld-tekst"><b>${tysiace(wynik)}</b> do analizy <small>${esc(opisWyniku)} · ${fmt((100 * wynik) / siatka, 0)}%</small></span></li>
     </ol>`;
@@ -379,7 +382,7 @@ function renderPrzygotowanie() {
 
   // Kroki: numer, nazwa, jedna linia, wynik
   $("#lista-krokow").innerHTML = P.kroki.map(([nazwa, co, wynik], i) =>
-    `<li style="--i:${i}"><span class="kp-nr">${i + 1}</span><b class="kp-nazwa">${esc(nazwa)}</b>` +
+    `<li><span class="kp-nr">${i + 1}</span><b class="kp-nazwa">${esc(nazwa)}</b>` +
     `<span class="kp-co">${esc(co)}</span><span class="kp-wynik">${esc(wynik)}</span></li>`).join("");
 
   $("#tabela-bazy").innerHTML =
