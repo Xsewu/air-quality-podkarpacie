@@ -1,7 +1,8 @@
-"""Konfiguracja: stacje, lata, ścieżki, progi klas jakości powietrza.
+"""Ustawienia całego projektu: ścieżki, lata, źródła danych, miasta i stacje, progi.
 
 Wszystkie kody stacji i identyfikatory plików zostały odczytane z faktycznie
 pobranych danych (strona archiwum GIOŚ, metadane GIOŚ, wykaz stacji IMGW).
+Pozostałe moduły biorą stąd stałe zamiast wpisywać je u siebie.
 """
 from pathlib import Path
 
@@ -33,37 +34,26 @@ IMGW_BASE_URL = "https://danepubliczne.imgw.pl/data/dane_pomiarowo_obserwacyjne/
 IMGW_ENCODING = "cp1250"
 # Stacje synoptyczne (kod 3-cyfrowy z nazw plików, pełny kod NSP z wykazu stacji)
 IMGW_STATIONS = {
-    580: "RZESZÓW-JASIONKA",
-    670: "KROSNO",
-    690: "LESKO",
+    375: "WARSZAWA",
+    560: "KATOWICE-MUCHOWIEC",
+    424: "WROCŁAW-STRACHOWICE",
+    155: "GDAŃSK-ŚWIBNO",
 }
 
 # --- API (TK03) -------------------------------------------------------------
 API_RAW = DATA_RAW / "api"
 # API GIOŚ v1 (JSON-LD); wersję bez /v1 wycofano 30.06.2025
 GIOS_API_URL = "https://api.gios.gov.pl/pjp-api/v1/rest"
-GIOS_API_VOIVODESHIP = "PODKARPACKIE"
 GIOS_API_PM_CODES = ["PM10", "PM2.5"]  # pole "Wskaźnik - kod" w liście stanowisk
-# API GUS Bank Danych Lokalnych; klucz opcjonalny (zmienna środowiskowa BDL_API_KEY)
-BDL_API_URL = "https://bdl.stat.gov.pl/api/v1"
-BDL_VARIABLES = {
-    60641: "ludnosc",            # P1336: ludność ogółem, miejsce zamieszkania, stan na 31 XII
-    32561: "samochody_osobowe",  # P1733: pojazdy ogółem – samochody osobowe [szt.]
-    60533: "samochody_na_1000",  # P2420: samochody osobowe na 1000 ludności
-    60559: "gestosc_zaludnienia",  # P2425: ludność na 1 km2
-}
 
-# --- Miasta: stacja GIOŚ -> miasto -> stacja meteo IMGW -> powiat BDL --------
-# Jedna stacja GIOŚ na miasto: stacja tła miejskiego z pełnymi latami 2023–2025.
-# "bdl" – identyfikator powiatu w BDL (poziom 5).
+# --- Miasta: stacja GIOŚ -> miasto -> stacja meteo IMGW ----------------------
+# Miasta, w których jest i stacja synoptyczna IMGW z danymi za 2023–2025, i stacja tła miejskiego GIOŚ
+# z PM10 i PM2.5. Z kilku stacji w mieście bierzemy tę z najpełniejszymi danymi.
 CITIES = {
-    # Rzeszów ma 5 stacji; PkRzeszStarz to stacja tła z kompletem PM10 i PM2.5 (PkRzeszPilsu jest komunikacyjna)
-    "Rzeszów": {"gios": "PkRzeszStarz", "imgw": 580, "bdl": "061813563000"},     # Powiat m. Rzeszów
-    "Krosno": {"gios": "PkKrosKletow", "imgw": 670, "bdl": "061813361000"},      # Powiat m. Krosno
-    # brak danych synop dla Przemyśla (695) – najbliższa stacja: Lesko
-    "Przemyśl": {"gios": "PkPrzemGrunw", "imgw": 690, "bdl": "061813462000"},    # Powiat m. Przemyśl
-    # brak stacji synop w Jaśle – najbliższa stacja: Krosno; Jasło nie jest miastem na prawach powiatu
-    "Jasło": {"gios": "PkJasloSikor", "imgw": 670, "bdl": "061813305000"},       # Powiat jasielski
+    "Warszawa": {"gios": "MzWarBajkowa", "imgw": 375},
+    "Katowice": {"gios": "SlKatoKossut", "imgw": 560},
+    "Wrocław": {"gios": "DsWrocWybCon", "imgw": 424},
+    "Gdańsk": {"gios": "PmGdaLeczkow", "imgw": 155},
 }
 GIOS_STATIONS = [c["gios"] for c in CITIES.values()]
 
@@ -80,3 +70,10 @@ HEATING_MONTHS = [10, 11, 12, 1, 2, 3]
 #   zła         PM10 > 50         (przekroczenie dobowej wartości dopuszczalnej).
 PM10_CLASS_BINS = [25, 50]
 PM10_CLASS_LABELS = ["dobra", "umiarkowana", "zła"]
+PM10_DAILY_LIMIT = PM10_CLASS_BINS[1]  # 50 µg/m3 – dobowa norma UE
+
+# --- Zmienne w danych dobowych: kolumna w bazie → nazwa na wykresach i stronie ---
+POLLUTANTS = {"pm10": "PM10", "pm25": "PM2.5"}
+WEATHER = {"temp_sr": "temperatura", "wiatr_sr": "prędkość wiatru", "opad": "opad",
+           "wilgotnosc": "wilgotność", "cisnienie": "ciśnienie"}
+SEASONS = ["letni", "grzewczy"]

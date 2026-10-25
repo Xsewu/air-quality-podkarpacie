@@ -2,9 +2,8 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Powietrze Podkarpacia</title>
-  <meta name="description" content="PM10 i PM2.5 w czterech miastach Podkarpacia (2023–2025): sezony, pogoda, ranking miast, model jakości dnia i typy dni.">
+  <title>Powietrze w Polsce</title>
+  <meta name="description" content="PM10 i PM2.5 w Warszawie, Katowicach, Wrocławiu i Gdańsku (2023–2025): sezony, pogoda, ranking miast, klasy jakości dnia i typy dni.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='10' cy='20' r='6' fill='%232a78d6'/%3E%3Ccircle cx='21' cy='12' r='8' fill='%23eb6834'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
         integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w=="
@@ -17,7 +16,7 @@
   <aside class="boczny">
     <div class="marka">
       <p class="eyebrow">Techniki analizy danych</p>
-      <h1>Powietrze Podkarpacia</h1>
+      <h1>Powietrze w Polsce</h1>
       <p class="lead">PM10 i PM2.5 · 4 miasta · <span data-meta="zakres">2023–2025</span></p>
     </div>
     <div class="pole-boczne">
@@ -34,7 +33,7 @@
       <a href="#sezony" data-panel="sezony"><span class="numer">1</span>Sezony</a>
       <a href="#pogoda" data-panel="pogoda"><span class="numer">2</span>Pogoda</a>
       <a href="#ranking" data-panel="ranking"><span class="numer">3</span>Ranking i stacje</a>
-      <a href="#model" data-panel="model"><span class="numer">4</span>Model</a>
+      <a href="#klasy" data-panel="klasy"><span class="numer">4</span>Klasy dni</a>
       <a href="#typy" data-panel="typy"><span class="numer">5</span>Typy dni</a>
     </nav>
   </aside>
@@ -48,15 +47,27 @@
         <span class="numer">A</span>
         <div>
           <h2 id="h-akwizycja">Akwizycja danych</h2>
-          <p class="opis">Skąd pochodzą dane, w jakim formacie przychodzą i jak je pobieramy (TK01–TK03).</p>
+          <p class="opis">Skąd pochodzą dane, w jakim formacie przychodzą i jak je pobieramy.</p>
         </div>
       </div>
-      <div class="przeplyw" id="przeplyw" aria-label="Przepływ danych"></div>
-      <div class="siatka-2" id="zrodla-karty"></div>
-      <figure class="karta siatka-odstep">
-        <figcaption><span class="tytul">Dziennik zapytań HTTP (TK03)</span>
-          <span class="pod" id="p-dziennik"></span></figcaption>
-        <div class="tabela-wrap tabela-przewijana"><table class="ranking dziennik" id="tabela-dziennik"></table></div>
+      <!-- Schemat: źródła (TK02 pliki, TK03 API) → jeden strumień → etapy → panel P -->
+      <figure class="karta schemat-karta">
+        <figcaption><span class="tytul">Droga danych</span>
+          <span class="pod" id="p-schemat"></span></figcaption>
+        <div class="schemat">
+          <div class="schemat-uklad">
+            <div class="zrodla-kolumna" id="schemat-zrodla" role="group" aria-label="Źródła danych"></div>
+            <div class="zbieg" aria-hidden="true"></div>
+            <ol class="etapy" id="schemat-etapy" aria-label="Dalsza droga danych"></ol>
+          </div>
+        </div>
+      </figure>
+      <!-- Podgląd surowych danych: jedna zakładka na źródło -->
+      <figure class="karta podglad siatka-odstep" id="podglad">
+        <figcaption><span class="tytul" id="t-podglad">Podgląd surowych danych</span>
+          <span class="pod">fragment pliku albo odpowiedzi API – tak, jak przychodzi</span></figcaption>
+        <div class="zakladki" role="tablist" aria-labelledby="t-podglad" id="zakladki-zrodel"></div>
+        <div id="panele-zrodel"></div>
       </figure>
       <p class="przypis" id="wygenerowano"></p>
     </section>
@@ -67,41 +78,52 @@
         <span class="numer">P</span>
         <div>
           <h2 id="h-przygotowanie">Przygotowanie danych</h2>
-          <p class="opis">Jak z surowych pomiarów powstają czyste dane do analizy (TK04).</p>
+          <p class="opis">Z surowych pomiarów godzinowych robimy czyste dane dobowe.</p>
         </div>
       </div>
-      <div class="przeplyw" id="lejek" aria-label="Liczba danych po kolejnych krokach przygotowania"></div>
-      <figure class="karta">
-        <figcaption><span class="tytul">Kroki przygotowania</span>
-          <span class="pod">po kolei, tak jak robi to src/clean.py</span></figcaption>
-        <div class="tabela-wrap"><table class="ranking kroki" id="tabela-kroki"></table></div>
+      <figure class="karta lejek-karta">
+        <figcaption><span class="tytul">Lejek oczyszczania</span>
+          <span class="pod" id="p-lejek"></span></figcaption>
+        <div class="lejek-p" id="lejek"></div>
       </figure>
       <figure class="karta siatka-odstep">
-        <figcaption><span class="tytul">Kontrola jakości pomiarów</span>
-          <span class="pod">szukamy wartości niemożliwych i błędów czujników</span></figcaption>
-        <p class="przypis" id="reguly-kontrola"></p>
-        <div class="tabela-wrap"><table class="klasy filtracja" id="tabela-kontrola"></table></div>
-        <div id="przyklady-kontrola"></div>
-        <p class="przypis" id="przypis-kontrola"></p>
+        <figcaption><span class="tytul">Kroki</span>
+          <span class="pod">po kolei, jak w src/clean.py</span></figcaption>
+        <ol class="kroki-p" id="lista-krokow"></ol>
       </figure>
       <div class="siatka-2 siatka-odstep">
         <figure class="karta" id="karta-doba">
-          <figcaption><span class="tytul" id="t-doba">Przykład: jedna doba przed i po kontroli</span>
+          <figcaption><span class="tytul" id="t-doba">Kontrola jakości: przykład doby</span>
             <span class="pod" id="p-doba"></span></figcaption>
-          <div class="wykres"><canvas id="wykres-doba" role="img" aria-label="Wartości godzinowe jednej doby przed i po kontroli jakości"></canvas></div>
+          <div class="wykres wykres-niski"><canvas id="wykres-doba" role="img" aria-label="Wartości godzinowe jednej doby przed i po kontroli jakości"></canvas></div>
           <p class="przypis" id="przypis-doba"></p>
         </figure>
         <figure class="karta">
-          <figcaption><span class="tytul">Baza SQLite po przygotowaniu</span>
-            <span class="pod">tabele w db/air.sqlite po czyszczeniu</span></figcaption>
-          <div class="tabela-wrap"><table class="ranking" id="tabela-bazy"></table></div>
+          <figcaption><span class="tytul">Filtracja: dlaczego dni odpadły</span>
+            <span class="pod" id="p-filtracja"></span></figcaption>
+          <div class="braki-p" id="wykres-brakow" role="img"></div>
+          <p class="przypis" id="przypis-filtracja"></p>
         </figure>
       </div>
-      <figure class="karta siatka-odstep">
-        <figcaption><span class="tytul">Filtracja: tylko pełne dni</span>
-          <span class="pod" id="p-filtracja"></span></figcaption>
-        <div class="tabela-wrap"><table class="klasy filtracja" id="tabela-filtracja"></table></div>
-        <p class="przypis" id="przypis-filtracja"></p>
+      <figure class="karta siatka-odstep szczegoly-p">
+        <figcaption><span class="tytul">Szczegóły</span></figcaption>
+        <div class="zakladki zakladki-p" role="tablist" aria-label="Szczegóły przygotowania" id="zakladki-p">
+          <button type="button" role="tab" class="zakladka" id="zak-kontrola" aria-controls="pan-kontrola" aria-selected="true" tabindex="0"><span class="z-nazwa"><b>Kontrola jakości</b> <small>wg stacji</small></span></button>
+          <button type="button" role="tab" class="zakladka" id="zak-filtracja" aria-controls="pan-filtracja" aria-selected="false" tabindex="-1"><span class="z-nazwa"><b>Braki</b> <small>dni wg zmiennej</small></span></button>
+          <button type="button" role="tab" class="zakladka" id="zak-baza" aria-controls="pan-baza" aria-selected="false" tabindex="-1"><span class="z-nazwa"><b>Baza SQLite</b> <small>db/air.sqlite</small></span></button>
+        </div>
+        <div role="tabpanel" id="pan-kontrola" aria-labelledby="zak-kontrola" tabindex="0">
+          <p class="przypis" id="reguly-kontrola"></p>
+          <div class="tabela-wrap"><table class="klasy filtracja" id="tabela-kontrola"></table></div>
+          <div id="przyklady-kontrola"></div>
+          <p class="przypis" id="przypis-kontrola"></p>
+        </div>
+        <div role="tabpanel" id="pan-filtracja" aria-labelledby="zak-filtracja" tabindex="0" hidden>
+          <div class="tabela-wrap"><table class="klasy filtracja" id="tabela-filtracja"></table></div>
+        </div>
+        <div role="tabpanel" id="pan-baza" aria-labelledby="zak-baza" tabindex="0" hidden>
+          <div class="tabela-wrap"><table class="ranking" id="tabela-bazy"></table></div>
+        </div>
       </figure>
     </section>
 
@@ -221,14 +243,14 @@
       <div class="sekcja-naglowek">
         <span class="numer">3</span>
         <div>
-          <h2 id="h-miasta">Ranking miast i dane GUS</h2>
-          <p class="opis">Które miasto ma najgorsze powietrze i czy ma to związek z danymi GUS.</p>
+          <h2 id="h-miasta">Ranking miast</h2>
+          <p class="opis">Które miasto ma najgorsze powietrze i jak jest teraz na tle lat 2023–2025.</p>
         </div>
       </div>
       <div class="siatka-ranking">
         <figure class="karta">
           <figcaption><span class="tytul">Ranking</span>
-            <span class="pod">miasta od najwyższego średniego PM10 · dane GUS dla powiatów</span></figcaption>
+            <span class="pod">miasta od najwyższego średniego PM10 · µg/m³</span></figcaption>
           <div class="tabela-wrap"><table class="ranking" id="tabela-ranking"></table></div>
           <p class="przypis" id="przypis-ranking"></p>
         </figure>
@@ -238,42 +260,37 @@
           <div id="mapa" class="mapa" role="region" aria-label="Mapa stacji pomiarowych"></div>
         </figure>
       </div>
+      <figure class="karta siatka-odstep" id="karta-teraz" hidden>
+        <figcaption><span class="tytul" id="t-teraz">Teraz na tle lat 2023–2025</span>
+          <span class="pod" id="p-teraz"></span></figcaption>
+        <div class="teraz" id="teraz"></div>
+        <p class="przypis" id="przypis-teraz"></p>
+      </figure>
     </section>
 
-    <!-- Panel 4: model -->
-    <section class="panel" data-panel="model" aria-labelledby="h-model">
+    <!-- Panel 4: klasy jakości dnia -->
+    <section class="panel" data-panel="klasy" aria-labelledby="h-klasy">
       <div class="sekcja-naglowek">
         <span class="numer">4</span>
         <div>
-          <h2 id="h-model">Czy pogoda przewiduje jakość dnia?</h2>
-          <p class="opis" id="opis-model">Klasyfikacja dnia jako dobry / umiarkowany / zły na podstawie pogody. Uczenie: 2023–2024, test: 2025.</p>
+          <h2 id="h-klasy">Klasy jakości dnia</h2>
+          <p class="opis">Ile dni było dobrych, umiarkowanych i złych – według dobowego PM10.</p>
         </div>
       </div>
-      <div class="narzedzia narzedzia-sekcja">
-        <div class="segment" role="radiogroup" aria-label="Model" id="wybor-model"></div>
-      </div>
-      <div class="kafle kafle-model" id="kafle-model"></div>
       <p class="przypis progi" id="progi"></p>
+      <div class="kafle" id="kafle-klasy" aria-label="Najważniejsze liczby"></div>
       <div class="siatka-2">
         <figure class="karta">
-          <figcaption><span class="tytul">Macierz pomyłek (rok 2025)</span>
-            <span class="pod">wiersze: prawdziwa klasa · kolumny: co przewidział model</span></figcaption>
-          <div class="tabela-wrap"><table class="macierz macierz-pomylek" id="macierz-pomylek"></table></div>
-          <div class="tabela-wrap"><table class="klasy" id="tabela-klasy"></table></div>
+          <figcaption><span class="tytul">Klasy dni w miesiącach</span>
+            <span class="pod">% dni w danym miesiącu · 4 miasta razem</span></figcaption>
+          <div class="wykres"><canvas id="wykres-klasy" role="img" aria-label="Udział klas dni w miesiącach"></canvas></div>
         </figure>
         <figure class="karta">
-          <figcaption><span class="tytul" id="t-waznosc">Ważność cech</span>
-            <span class="pod" id="p-waznosc"></span></figcaption>
-          <div class="wykres wykres-wysoki"><canvas id="wykres-waznosc" role="img" aria-label="Wykres ważności cech modelu"></canvas></div>
-          <p class="przypis" id="przypis-waznosc"></p>
+          <figcaption><span class="tytul">Klasy dni w miastach i sezonach</span>
+            <span class="pod">liczba dni (udział)</span></figcaption>
+          <div class="tabela-wrap"><table class="klasy" id="tabela-klasy"></table></div>
         </figure>
       </div>
-      <figure class="karta siatka-odstep">
-        <figcaption><span class="tytul">Selekcja cech przed uczeniem</span>
-          <span class="pod">jak mocno cechy modelu są ze sobą powiązane (|r|) · obwódka: para zbyt podobna</span></figcaption>
-        <div class="tabela-wrap"><table class="macierz" id="macierz-cech"></table></div>
-        <p class="przypis" id="przypis-cech"></p>
-      </figure>
     </section>
 
     <!-- Panel 5: typy dni (klasteryzacja) -->

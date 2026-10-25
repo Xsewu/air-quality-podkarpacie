@@ -1,7 +1,7 @@
 {
   "metoda": {
     "obiekt": "dzień pogodowy (data × stacja IMGW)",
-    "n": 2601,
+    "n": 4144,
     "cechy": [
       "temperatura",
       "prędkość wiatru",
@@ -15,346 +15,350 @@
   "wybor_k": [
     {
       "k": 2,
-      "silhouette": 0.252,
-      "inercja": 9978.375,
-      "min_rozmiar": 883,
+      "silhouette": 0.243,
+      "inercja": 15956.005,
+      "min_rozmiar": 1453,
       "spadek_inercji": NaN
     },
     {
       "k": 3,
-      "silhouette": 0.257,
-      "inercja": 7757.391,
-      "min_rozmiar": 694,
-      "spadek_inercji": 2220.983
+      "silhouette": 0.256,
+      "inercja": 12294.8,
+      "min_rozmiar": 1097,
+      "spadek_inercji": 3661.205
     },
     {
       "k": 4,
-      "silhouette": 0.276,
-      "inercja": 6414.238,
-      "min_rozmiar": 461,
-      "spadek_inercji": 1343.154
+      "silhouette": 0.271,
+      "inercja": 10329.155,
+      "min_rozmiar": 689,
+      "spadek_inercji": 1965.645
     },
     {
       "k": 5,
-      "silhouette": 0.227,
-      "inercja": 5849.124,
-      "min_rozmiar": 421,
-      "spadek_inercji": 565.114
+      "silhouette": 0.239,
+      "inercja": 9459.163,
+      "min_rozmiar": 594,
+      "spadek_inercji": 869.992
     },
     {
       "k": 6,
-      "silhouette": 0.226,
-      "inercja": 5442.454,
-      "min_rozmiar": 205,
-      "spadek_inercji": 406.67
+      "silhouette": 0.204,
+      "inercja": 8699.543,
+      "min_rozmiar": 548,
+      "spadek_inercji": 759.621
     },
     {
       "k": 7,
-      "silhouette": 0.221,
-      "inercja": 5070.785,
-      "min_rozmiar": 192,
-      "spadek_inercji": 371.669
+      "silhouette": 0.196,
+      "inercja": 8108.523,
+      "min_rozmiar": 393,
+      "spadek_inercji": 591.02
     },
     {
       "k": 8,
-      "silhouette": 0.207,
-      "inercja": 4725.297,
-      "min_rozmiar": 186,
-      "spadek_inercji": 345.488
+      "silhouette": 0.197,
+      "inercja": 7630.208,
+      "min_rozmiar": 319,
+      "spadek_inercji": 478.314
     }
   ],
   "k": 4,
-  "uzasadnienie": "k = 4: najwyższe silhouette (0.276; kolejne k = 3: 0.257), a spadek inercji po k = 4 wyraźnie maleje (łokieć).",
+  "uzasadnienie": "k = 4: najwyższe silhouette (0.271; kolejne k = 3: 0.256), a spadek inercji po k = 4 wyraźnie maleje (łokieć).",
   "profil": [
     {
       "klaster": 1,
       "nazwa": "zimne, wyżowe",
       "kolor": "#2a78d6",
-      "n_dni_pogodowych": 739,
-      "n_dni_miasto": 988,
-      "temp_sr": 2.5511,
-      "wiatr_sr": 2.6154,
-      "opad": 0.2739,
-      "wilgotnosc": 82.4059,
-      "cisnienie": 6.7133,
-      "udzial_grzewczy_pct": 91.2,
-      "pm10_srednia": 26.4562,
-      "pm10_mediana": 22.245,
-      "pm25_srednia": 20.3283,
-      "pm25_mediana": 16.57,
-      "dni_pm10": 988,
-      "dni_powyzej_50": 73,
-      "dni_zla_pct": 7.39
+      "n_dni_pogodowych": 1192,
+      "n_dni_miasto": 1192,
+      "temp_sr": 3.581,
+      "wiatr_sr": 2.5825,
+      "opad": 0.2461,
+      "wilgotnosc": 83.8786,
+      "cisnienie": 6.8878,
+      "udzial_grzewczy_pct": 89.4,
+      "pm10_srednia": 29.0633,
+      "pm10_mediana": 25.63,
+      "pm25_srednia": 23.3515,
+      "pm25_mediana": 20.54,
+      "dni_pm10": 1192,
+      "dni_powyzej_50": 105,
+      "dni_zla_pct": 8.81
     },
     {
       "klaster": 2,
-      "nazwa": "ciepłe, suche",
+      "nazwa": "suche, ciepłe",
       "kolor": "#eb6834",
-      "n_dni_pogodowych": 931,
-      "n_dni_miasto": 1256,
-      "temp_sr": 16.1203,
-      "wiatr_sr": 2.6186,
-      "opad": 0.1872,
-      "wilgotnosc": 65.5709,
-      "cisnienie": 0.9571,
-      "udzial_grzewczy_pct": 12.8,
-      "pm10_srednia": 18.8344,
-      "pm10_mediana": 16.855,
-      "pm25_srednia": 10.3476,
-      "pm25_mediana": 9.28,
-      "dni_pm10": 1256,
-      "dni_powyzej_50": 21,
-      "dni_zla_pct": 1.67
+      "n_dni_pogodowych": 1510,
+      "n_dni_miasto": 1510,
+      "temp_sr": 16.9991,
+      "wiatr_sr": 2.6336,
+      "opad": 0.1739,
+      "wilgotnosc": 65.451,
+      "cisnienie": 1.1283,
+      "udzial_grzewczy_pct": 9.9,
+      "pm10_srednia": 21.5227,
+      "pm10_mediana": 19.255,
+      "pm25_srednia": 12.7354,
+      "pm25_mediana": 11.205,
+      "dni_pm10": 1510,
+      "dni_powyzej_50": 36,
+      "dni_zla_pct": 2.38
     },
     {
       "klaster": 3,
-      "nazwa": "deszczowe, wilgotne",
+      "nazwa": "deszczowe, niżowe",
       "kolor": "#1baf7a",
-      "n_dni_pogodowych": 461,
-      "n_dni_miasto": 621,
-      "temp_sr": 10.2845,
-      "wiatr_sr": 2.7375,
-      "opad": 8.3425,
-      "wilgotnosc": 86.1149,
-      "cisnienie": -5.3204,
-      "udzial_grzewczy_pct": 43.6,
-      "pm10_srednia": 15.6757,
-      "pm10_mediana": 14.67,
-      "pm25_srednia": 10.4007,
-      "pm25_mediana": 9.21,
-      "dni_pm10": 621,
-      "dni_powyzej_50": 1,
-      "dni_zla_pct": 0.16
+      "n_dni_pogodowych": 689,
+      "n_dni_miasto": 689,
+      "temp_sr": 11.7136,
+      "wiatr_sr": 2.957,
+      "opad": 8.1534,
+      "wilgotnosc": 84.4346,
+      "cisnienie": -6.6161,
+      "udzial_grzewczy_pct": 45.6,
+      "pm10_srednia": 18.4396,
+      "pm10_mediana": 16.65,
+      "pm25_srednia": 13.9215,
+      "pm25_mediana": 12.25,
+      "dni_pm10": 689,
+      "dni_powyzej_50": 7,
+      "dni_zla_pct": 1.02
     },
     {
       "klaster": 4,
       "nazwa": "wietrzne, niżowe",
       "kolor": "#eda100",
-      "n_dni_pogodowych": 470,
-      "n_dni_miasto": 603,
-      "temp_sr": 5.494,
-      "wiatr_sr": 5.0449,
-      "opad": 1.3423,
-      "wilgotnosc": 76.4052,
-      "cisnienie": -7.2329,
-      "udzial_grzewczy_pct": 87.9,
-      "pm10_srednia": 14.9494,
-      "pm10_mediana": 13.43,
-      "pm25_srednia": 10.6053,
-      "pm25_mediana": 9.32,
-      "dni_pm10": 603,
-      "dni_powyzej_50": 5,
-      "dni_zla_pct": 0.83
+      "n_dni_pogodowych": 753,
+      "n_dni_miasto": 753,
+      "temp_sr": 6.437,
+      "wiatr_sr": 5.0254,
+      "opad": 0.894,
+      "wilgotnosc": 78.2937,
+      "cisnienie": -7.1121,
+      "udzial_grzewczy_pct": 82.2,
+      "pm10_srednia": 16.3057,
+      "pm10_mediana": 13.81,
+      "pm25_srednia": 12.8084,
+      "pm25_mediana": 10.21,
+      "dni_pm10": 753,
+      "dni_powyzej_50": 3,
+      "dni_zla_pct": 0.4
     }
   ],
   "z_score": {
     "1": {
-      "temp_sr": -0.87,
-      "wiatr_sr": -0.333,
-      "opad": -0.452,
-      "wilgotnosc": 0.505,
-      "cisnienie": 0.838
+      "temp_sr": -0.882,
+      "wiatr_sr": -0.372,
+      "opad": -0.423,
+      "wilgotnosc": 0.616,
+      "cisnienie": 0.769
     },
     "2": {
-      "temp_sr": 0.877,
-      "wiatr_sr": -0.33,
-      "opad": -0.525,
-      "wilgotnosc": -0.813,
-      "cisnienie": 0.12
+      "temp_sr": 0.868,
+      "wiatr_sr": -0.335,
+      "opad": -0.479,
+      "wilgotnosc": -0.87,
+      "cisnienie": 0.126
     },
     "3": {
-      "temp_sr": 0.125,
-      "wiatr_sr": -0.245,
-      "opad": 1.753,
-      "wilgotnosc": 0.796,
-      "cisnienie": -0.664
+      "temp_sr": 0.179,
+      "wiatr_sr": -0.106,
+      "opad": 1.834,
+      "wilgotnosc": 0.66,
+      "cisnienie": -0.739
     },
     "4": {
-      "temp_sr": -0.491,
-      "wiatr_sr": 1.417,
-      "opad": 0.03,
-      "wilgotnosc": 0.035,
-      "cisnienie": -0.903
+      "temp_sr": -0.509,
+      "wiatr_sr": 1.359,
+      "opad": -0.048,
+      "wilgotnosc": 0.165,
+      "cisnienie": -0.794
     }
   },
   "miesiace": {
     "1": {
-      "1": 46.3,
-      "2": 1.5,
-      "3": 16.7,
-      "4": 35.6
+      "1": 47.8,
+      "2": 1.9,
+      "3": 12.1,
+      "4": 38.2
     },
     "2": {
-      "1": 57.1,
-      "2": 5.9,
-      "3": 12.3,
-      "4": 24.7
+      "1": 60.9,
+      "2": 1.8,
+      "3": 13.5,
+      "4": 23.8
     },
     "3": {
-      "1": 30.3,
-      "2": 25.3,
-      "3": 15.7,
-      "4": 28.7
+      "1": 31.7,
+      "2": 22.3,
+      "3": 11.3,
+      "4": 34.7
     },
     "4": {
-      "1": 12.9,
-      "2": 51.7,
-      "3": 19.2,
-      "4": 16.2
+      "1": 19.6,
+      "2": 44.9,
+      "3": 14.3,
+      "4": 21.1
     },
     "5": {
-      "1": 7.8,
-      "2": 69.3,
-      "3": 19.0,
-      "4": 3.9
+      "1": 7.5,
+      "2": 71.9,
+      "3": 15.8,
+      "4": 4.8
     },
     "6": {
-      "1": 0.6,
-      "2": 73.3,
-      "3": 25.6,
-      "4": 0.6
+      "1": 0.8,
+      "2": 76.4,
+      "3": 18.5,
+      "4": 4.2
     },
     "7": {
       "1": 0.0,
-      "2": 70.8,
-      "3": 26.0,
-      "4": 3.2
+      "2": 72.5,
+      "3": 25.0,
+      "4": 2.5
     },
     "8": {
-      "1": 0.5,
-      "2": 77.8,
-      "3": 21.2,
-      "4": 0.5
+      "1": 0.3,
+      "2": 74.1,
+      "3": 22.8,
+      "4": 2.8
     },
     "9": {
-      "1": 11.1,
-      "2": 69.0,
-      "3": 19.8,
-      "4": 0.0
+      "1": 10.1,
+      "2": 69.3,
+      "3": 15.8,
+      "4": 4.8
     },
     "10": {
-      "1": 46.3,
-      "2": 13.0,
-      "3": 14.7,
-      "4": 26.0
+      "1": 39.5,
+      "2": 11.6,
+      "3": 23.3,
+      "4": 25.6
     },
     "11": {
-      "1": 42.1,
-      "2": 4.6,
-      "3": 19.9,
-      "4": 33.3
+      "1": 54.5,
+      "2": 3.1,
+      "3": 18.0,
+      "4": 24.4
     },
     "12": {
-      "1": 65.2,
-      "2": 1.1,
-      "3": 7.2,
-      "4": 26.5
+      "1": 64.3,
+      "2": 0.3,
+      "3": 9.9,
+      "4": 25.5
     }
   },
   "klaster_klasa": {
     "1": {
-      "dobra": 585,
-      "umiarkowana": 330,
-      "zła": 73
+      "dobra": 568,
+      "umiarkowana": 519,
+      "zła": 105
     },
     "2": {
-      "dobra": 1068,
-      "umiarkowana": 167,
-      "zła": 21
+      "dobra": 1156,
+      "umiarkowana": 318,
+      "zła": 36
     },
     "3": {
       "dobra": 576,
-      "umiarkowana": 44,
-      "zła": 1
+      "umiarkowana": 106,
+      "zła": 7
     },
     "4": {
-      "dobra": 554,
-      "umiarkowana": 44,
-      "zła": 5
+      "dobra": 631,
+      "umiarkowana": 119,
+      "zła": 3
     }
   },
-  "ari": 0.013,
+  "ari": 0.023,
   "udzial_stacji_pct": {
     "1": {
-      "580": 25.3,
-      "670": 28.7,
-      "690": 31.3
+      "155": 25.9,
+      "375": 28.6,
+      "424": 29.1,
+      "560": 31.6
     },
     "2": {
-      "580": 33.8,
-      "670": 37.5,
-      "690": 36.1
+      "155": 28.7,
+      "375": 41.3,
+      "424": 37.6,
+      "560": 38.1
     },
     "3": {
-      "580": 14.6,
-      "670": 18.5,
-      "690": 20.1
+      "155": 13.6,
+      "375": 15.4,
+      "424": 15.6,
+      "560": 21.8
     },
     "4": {
-      "580": 26.3,
-      "670": 15.3,
-      "690": 12.6
+      "155": 31.9,
+      "375": 14.7,
+      "424": 17.7,
+      "560": 8.5
     }
   },
   "kwartyle_pm": {
     "pm10": {
       "1": [
-        12.2,
-        16.0,
-        22.2,
-        31.5,
-        45.0
+        13.2,
+        18.2,
+        25.6,
+        36.0,
+        48.1
       ],
       "2": [
-        10.9,
-        13.5,
-        16.9,
-        21.6,
-        28.0
+        12.1,
+        14.8,
+        19.3,
+        24.5,
+        33.5
       ],
       "3": [
-        8.5,
-        11.2,
-        14.7,
-        19.0,
-        23.4
+        9.5,
+        12.4,
+        16.6,
+        22.4,
+        29.0
       ],
       "4": [
-        7.2,
-        9.1,
-        13.4,
-        18.0,
-        23.5
+        7.3,
+        9.8,
+        13.8,
+        21.0,
+        28.9
       ]
     },
     "pm25": {
       "1": [
-        7.9,
-        11.3,
-        16.6,
-        24.4,
-        35.7
+        10.5,
+        14.5,
+        20.5,
+        29.2,
+        38.2
       ],
       "2": [
-        4.9,
-        6.8,
-        9.3,
-        11.8,
-        16.0
+        7.1,
+        8.8,
+        11.2,
+        14.6,
+        19.8
       ],
       "3": [
-        4.9,
-        6.7,
+        6.9,
         9.2,
         12.2,
-        17.2
+        16.2,
+        23.7
       ],
       "4": [
-        4.4,
-        6.4,
-        9.3,
-        13.1,
-        17.7
+        5.7,
+        7.3,
+        10.2,
+        16.4,
+        23.8
       ]
     }
   }

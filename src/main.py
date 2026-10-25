@@ -1,21 +1,27 @@
-"""Uruchamia cały pipeline: python -m src.main"""
-from src import analyze, clean, cluster, export, fetch_api, fetch_local, model
+"""Uruchamia cały projekt po kolei: python -m src.main
+
+Każdy krok to osobny moduł z funkcją run(); można je też uruchamiać pojedynczo
+(np. python -m src.analyze), jeśli baza db/air.sqlite już istnieje.
+"""
+from src import analyze, clean, cluster, eda, export, fetch_api, fetch_local, significance
 
 
 def main() -> None:
-    print("[TK02] Dane lokalne: archiwa GIOŚ i IMGW")
+    print("[TK02] Dane z plików: archiwa GIOŚ i IMGW")
     local = fetch_local.run()
-    print("[TK03] Dane zdalne: API GIOŚ i GUS BDL")
+    print("[TK03] Dane z internetu: API GIOŚ")
     api = fetch_api.run()
-    print("[TK04] Czyszczenie i zapis do SQLite")
+    print("[TK04] Przygotowanie danych i zapis do SQLite")
     clean.run(local, api)
-    print("[TK04] Analiza i wykresy")
+    print("[TK04] Eksploracja danych (EDA)")
+    eda.run()
+    print("[TK04] Pytania 1–4: sezony, pogoda, ranking miast, klasy dni")
     analyze.run()
-    print("[TK04] Model klasyfikacji jakości dnia")
-    model.run()
-    print("[TK04] Klasteryzacja dni pogodowych")
+    print("[TK04] Testy istotności")
+    significance.run()
+    print("[TK04] Typy dni pogodowych (klasteryzacja)")
     cluster.run()
-    print("[TK05] Eksport danych dla strony WWW")
+    print("[TK05] Eksport danych dla strony")
     export.run()
 
 

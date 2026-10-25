@@ -1,1 +1,1 @@
-"""Projekt: jakość powietrza na Podkarpaciu (PM10, PM2.5)."""
+"""Projekt: jakość powietrza w czterech dużych miastach Polski (PM10, PM2.5)."""

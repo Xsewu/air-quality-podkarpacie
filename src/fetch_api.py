@@ -1,15 +1,14 @@
-"""TK03 – pobieranie danych ze źródeł zdalnych (API GIOŚ, API GUS BDL, JSON).
+"""TK03 – pobieranie danych z internetu (API GIOŚ, JSON-LD).
 
 Klient HTTP obsługuje timeouty, ponowienia z wykładniczym odstępem (błędy sieci,
 HTTP 429 i 5xx, z uwzględnieniem nagłówka Retry-After) oraz minimalny odstęp
-między zapytaniami do danego API (limity zapytań).
+między zapytaniami (limity zapytań).
 
-Surowe odpowiedzi JSON są zapisywane w data/raw/api/. Lista stacji i dane GUS są
-pobierane tylko wtedy, gdy pliku jeszcze nie ma; bieżące pomiary GIOŚ trafiają
-do nowego pliku ze znacznikiem czasu przy każdym uruchomieniu.
+Surowe odpowiedzi JSON są zapisywane w data/raw/api/. Lista stacji jest pobierana
+tylko wtedy, gdy pliku jeszcze nie ma; bieżące pomiary trafiają do nowego pliku
+ze znacznikiem czasu przy każdym uruchomieniu.
 """
 import json
-import os
 import time
 from datetime import datetime
 
@@ -32,7 +31,7 @@ class ApiClient:
         self.session = requests.Session()
         self.session.headers.update({"Accept": "application/json", **(headers or {})})
         self._last_request = 0.0
-        self.dziennik: list[dict] = []  # każda próba zapytania – do panelu „Akwizycja danych”
+        self.log: list[dict] = []  # każda próba zapytania (czas, adres, status, czas odpowiedzi, rozmiar)
 
     def _wait_for_slot(self) -> None:
         delay = self.min_interval - (time.monotonic() - self._last_request)
@@ -45,14 +44,14 @@ class ApiClient:
         for attempt in range(self.retries + 1):
             self._wait_for_slot()
             start = time.monotonic()
-            wpis = {"czas": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "adres": url}
+            entry = {"czas": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "adres": url}
             try:
                 resp = self.session.get(url, params=params, timeout=self.timeout)
-                wpis.update(adres=resp.url, status=resp.status_code, ms=round((time.monotonic() - start) * 1000),
-                            bajty=len(resp.content))
-                self.dziennik.append(wpis)
+                entry.update(adres=resp.url, status=resp.status_code, ms=round((time.monotonic() - start) * 1000),
+                             bajty=len(resp.content))
+                self.log.append(entry)
             except (requests.ConnectionError, requests.Timeout) as exc:
-                self.dziennik.append(wpis | {"status": type(exc).__name__, "ms": round((time.monotonic() - start) * 1000)})
+                self.log.append(entry | {"status": type(exc).__name__, "ms": round((time.monotonic() - start) * 1000)})
                 if attempt == self.retries:
                     raise
                 wait = self.backoff ** attempt
@@ -103,14 +102,13 @@ def _gios_all_pages(client: ApiClient, path: str, list_key: str) -> list[dict]:
 
 
 def fetch_gios_stations(client: ApiClient) -> pd.DataFrame:
-    """Lista stacji pomiarowych w województwie podkarpackim (z pamięcią podręczną)."""
+    """Lista stacji pomiarowych w Polsce (z pamięcią podręczną)."""
     name = "gios_stations.json"
     stations = _load_json(name)
     if stations is None:
         stations = _gios_all_pages(client, "station/findAll", "Lista stacji pomiarowych")
         _save_json(stations, name)
     df = pd.DataFrame(stations)
-    df = df[df["Województwo"] == config.GIOS_API_VOIVODESHIP].reset_index(drop=True)
     for col in ["WGS84 φ N", "WGS84 λ E"]:
         df[col] = pd.to_numeric(df[col])
     return df
@@ -148,65 +146,33 @@ def fetch_gios_current(client: ApiClient, stations: pd.DataFrame) -> pd.DataFram
     return df
 
 
-# --- GUS BDL ------------------------------------------------------------------
-
-def bdl_client() -> ApiClient:
-    # Limity dla użytkownika anonimowego: 5/s, 100/15 min, 1000/12 h, 10 000/7 dni.
-    # Klucz API (nagłówek X-ClientId) jest opcjonalny – czytany ze zmiennej środowiskowej.
-    key = os.environ.get("BDL_API_KEY")
-    return ApiClient(config.BDL_API_URL, min_interval=1.0, headers={"X-ClientId": key} if key else None)
-
-
-def fetch_bdl(client: ApiClient) -> pd.DataFrame:
-    """Wybrane zmienne BDL dla powiatów miast z konfiguracji (z pamięcią podręczną)."""
-    name = "bdl_powiaty.json"
-    raw = _load_json(name)
-    if raw is None:
-        raw = {}
-        params = [("format", "json")] + [("var-id", v) for v in config.BDL_VARIABLES] \
-            + [("year", y) for y in config.YEARS]
-        for city, c in config.CITIES.items():
-            raw[city] = client.get(f"data/by-unit/{c['bdl']}", params=params)
-        _save_json(raw, name)
-    rows = []
-    for city, data in raw.items():
-        if city not in config.CITIES:  # zapisany plik może zawierać powiaty spoza aktualnej listy miast
-            continue
-        for res in data["results"]:
-            for v in res["values"]:
-                rows.append({"miasto": city, "jednostka": data["unitName"], "unit_id": data["unitId"],
-                             "zmienna": config.BDL_VARIABLES[res["id"]], "rok": int(v["year"]),
-                             "wartosc": v["val"]})
-    return pd.DataFrame(rows)
-
-
-def zapisz_dziennik(klienci: dict[str, ApiClient], z_dysku: dict[str, bool]) -> None:
-    """Dziennik akwizycji z API: wszystkie zapytania HTTP i pliki wczytane z pamięci podręcznej."""
-    wpisy = [w | {"api": nazwa} for nazwa, k in klienci.items() for w in k.dziennik]
-    dziennik = {
+def save_request_log(clients: dict[str, ApiClient], from_disk: dict[str, bool]) -> None:
+    """Zapisuje wszystkie zapytania HTTP i informację, które pliki wczytano z dysku zamiast z sieci."""
+    entries = [entry | {"api": name} for name, client in clients.items() for entry in client.log]
+    log = {
         "uruchomienie": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "zapytania": wpisy,
-        "pamiec_podreczna": [{"plik": plik, "z_dysku": z,
-                              "data_pliku": datetime.fromtimestamp((config.API_RAW / plik).stat().st_mtime)
-                              .strftime("%Y-%m-%d %H:%M")} for plik, z in z_dysku.items()],
+        "zapytania": entries,
+        "pamiec_podreczna": [{"plik": file, "z_dysku": cached,
+                              "data_pliku": datetime.fromtimestamp((config.API_RAW / file).stat().st_mtime)
+                              .strftime("%Y-%m-%d %H:%M")} for file, cached in from_disk.items()],
     }
     config.DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
     (config.DATA_PROCESSED / "akwizycja_api.json").write_text(
-        json.dumps(dziennik, ensure_ascii=False, indent=1), encoding="utf-8")
+        json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def run() -> dict[str, pd.DataFrame]:
-    # Lista stacji i dane GUS są pobierane raz – sprawdzamy, czy tym razem pochodzą z dysku
-    z_dysku = {plik: (config.API_RAW / plik).exists() for plik in ["gios_stations.json", "bdl_powiaty.json"]}
-    gios, bdl = gios_client(), bdl_client()
+    """Lista stacji i najnowsze pomiary z API GIOŚ."""
+    # Lista stacji jest pobierana raz – sprawdzamy, czy tym razem pochodzi z dysku
+    from_disk = {file: (config.API_RAW / file).exists() for file in ["gios_stations.json"]}
+    gios = gios_client()
     stations = fetch_gios_stations(gios)
-    wynik = {
+    result = {
         "api_stations": stations,
         "api_current": fetch_gios_current(gios, stations),
-        "bdl": fetch_bdl(bdl),
     }
-    zapisz_dziennik({"GIOŚ": gios, "GUS BDL": bdl}, z_dysku)
-    return wynik
+    save_request_log({"GIOŚ": gios}, from_disk)
+    return result
 
 
 if __name__ == "__main__":

@@ -1,4 +1,11 @@
-/* TK05 – strona z wynikami analizy (Chart.js + Leaflet, dane z data/*.json). */
+/* TK05 – strona z wynikami (Chart.js + Leaflet, dane z data/*.json).
+ *
+ * Układ pliku:
+ *   stan strony → pomocnicze → wczytanie danych → Chart.js i wtyczki → nawigacja między panelami
+ *   → panele w kolejności menu: A (akwizycja), P (przygotowanie), E (eksploracja), 1 (sezony),
+ *     2 (pogoda), 3 (ranking i mapa), 4 (klasy dni), 5 (typy dni) → pasek boczny → przełączniki → start.
+ * Każdy panel ma funkcje render…(), które wpisują dane z DANE.<plik> do elementów strony.
+ */
 "use strict";
 
 // --- Stan strony ----------------------------------------------------------------
@@ -7,7 +14,6 @@ const STAN = {
   zakres: "cały rok",      // zakres sezonu w macierzy korelacji
   os: "temp",              // oś X wykresu rozrzutu: "temp" | "wiatr"
   zmiennaEda: "PM10",      // zmienna na histogramie w panelu eksploracji
-  model: "random forest",
 };
 const DANE = {};
 const WYKRESY = {};
@@ -61,10 +67,12 @@ function kolorTekstu(tlo) {
   const [r, g, b] = tlo.match(/\d+/g).map(Number);
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#0c2a47" : "#ffffff";
 }
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const liczba = (v) => (Number.isInteger(v) ? fmtInt(v) : fmt(v));
 
 // --- Wczytanie danych -------------------------------------------------------------
 async function wczytajDane() {
-  const pliki = ["meta", "akwizycja", "przygotowanie", "eksploracja", "sezonowe", "korelacje", "stacje", "ranking", "model", "klastry"];
+  const pliki = ["meta", "akwizycja", "przygotowanie", "eksploracja", "sezonowe", "korelacje", "stacje", "ranking", "klasy", "klastry"];
   const wyniki = await Promise.all(pliki.map(async (p) => {
     const odp = await fetch(`data/${p}.json`);
     if (!odp.ok) throw new Error(`data/${p}.json: HTTP ${odp.status}`);
@@ -137,7 +145,496 @@ const liniaNormy = {
   },
 };
 
-// --- Kafle z najważniejszymi liczbami ---------------------------------------------
+// Wtyczka: pionowe linie średniej i mediany na histogramie (oś kategorii = kolejne przedziały)
+const linieRozkladu = {
+  id: "linieRozkladu",
+  afterDatasetsDraw(chart, _args, opt) {
+    const { ctx, chartArea: a, scales: { x } } = chart;
+    const krok = x.getPixelForValue(1) - x.getPixelForValue(0);
+    ctx.save();
+    for (const l of opt.linie ?? []) {
+      const px = x.getPixelForValue(0) + ((l.wartosc - opt.od) / opt.szer - 0.5) * krok;
+      if (px < a.left || px > a.right) continue;
+      ctx.strokeStyle = l.kolor; ctx.lineWidth = 2.5; ctx.setLineDash(l.przerywana ? [6, 4] : []);
+      ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
+    }
+    ctx.restore();
+  },
+};
+
+// --- Nawigacja: jeden panel widoczny naraz, wybór z menu (adres #panel) ----------------------
+const PANELE = ["akwizycja", "przygotowanie", "eksploracja", "sezony", "pogoda", "ranking", "klasy", "typy"];
+let mapaGotowa = false;
+const panelZAdresu = () => (PANELE.includes(location.hash.slice(1)) ? location.hash.slice(1) : PANELE[0]);
+
+function pokazPanel(id) {
+  document.querySelectorAll(".panel").forEach((p) => { p.hidden = p.dataset.panel !== id; });
+  document.querySelectorAll(".menu a").forEach((a) => {
+    if (a.dataset.panel === id) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
+  // Mapa powstaje przy pierwszym otwarciu panelu – Leaflet potrzebuje widocznego kontenera
+  if (id === "ranking" && !mapaGotowa) {
+    zbudujMape();
+    mapaGotowa = true;
+  }
+  window.scrollTo(0, 0);
+}
+
+// --- Panel A: akwizycja danych ----------------------------------------------------------
+// Schemat: 3 źródła (pliki z archiwów TK02, zapytania do API TK03) zbiegają się w jeden strumień
+// → surowe pliki → pomiary godzinowe → panel P. Pod schematem podgląd surowych danych (zakładki).
+
+const GRUPY_ZRODEL = [["TK02", "Pliki z archiwów"], ["TK03", "Zapytania do API"]];
+// Strzałka schematu: linia + grot; rysowana poziomo, w układzie pionowym obracana w CSS
+const GROT = '<svg class="grot" viewBox="0 0 32 12" aria-hidden="true" focusable="false">' +
+  '<path class="g-linia" d="M0 6h24"/><path class="g-grot" d="M21 0l11 6-11 6z"/></svg>';
+
+// Krótki znacznik formatu (XLSX/CSV/JSON-LD/JSON) – z eksportu, a w starszych danych z opisu formatu
+const znacznikFormatu = (z) => z.znacznik ?? z.format.match(/JSON-LD|JSON|XLSX|CSV/)?.[0] ?? "plik";
+const rozmiarPliku = (kB) => (kB >= 1024 ? `${fmt(kB / 1024)} MB` : `${fmtInt(kB)} kB`);
+const dataPobrania = (t) => `${t.slice(8, 10)}.${t.slice(5, 7)}.${t.slice(0, 4)} ${t.slice(11, 16)}`;
+// „GIOŚ – archiwum pomiarów” → ["GIOŚ", "archiwum pomiarów"] (instytucja pogrubiona w zakładce)
+const czesciNazwy = (nazwa) => { const [kto, ...co] = nazwa.split(" – "); return [kto, co.join(" – ")]; };
+
+function probkaHtml(p) {
+  if (p.typ === "json") return `<pre class="surowe">${esc(p.tekst)}</pre>`;
+  // Tabela: dla CSV pierwszy wiersz to nazwy kolumn, dla XLSX – wiersze arkusza jak w pliku
+  const naglowek = p.wiersze.length === 2;
+  return `<div class="tabela-wrap"><table class="surowe">${p.wiersze.map((w, i) => `<tr>${w.map((c, j) =>
+    (naglowek && i === 0) || (!naglowek && j === 0) ? `<th>${esc(c)}</th>` : `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table></div>`;
+}
+
+// Lewa kolumna schematu: etykiety grup i węzły źródeł. Klasy szyna-* rysują wspólną pionową linię
+// od środka pierwszego do środka ostatniego węzła (każdy wiersz dorysowuje swój odcinek).
+function schematZrodelHtml(zrodla) {
+  const wiersze = GRUPY_ZRODEL.flatMap(([tk, nazwa]) => {
+    const wGrupie = zrodla.filter((z) => z.tk === tk);
+    return wGrupie.length ? [{ tk, nazwa }, ...wGrupie] : [];
+  });
+  const wezly = wiersze.flatMap((w, i) => (w.id ? [i] : []));
+  const [pierwszy, ostatni] = [wezly[0], wezly.at(-1)];
+  const szyna = (i) => (pierwszy === ostatni ? "" : i === pierwszy ? "szyna-od" : i === ostatni ? "szyna-do"
+    : i > pierwszy && i < ostatni ? "szyna" : "");
+  let nr = 0;
+  return wiersze.map((w, i) => {
+    if (!w.id) return `<p class="grupa-etykieta ${w.tk.toLowerCase()} ${szyna(i)}"><i aria-hidden="true"></i>${esc(w.nazwa)}</p>`;
+    const domena = new URL(w.url).host;
+    return `<div class="wezel ${w.tk.toLowerCase()} ${szyna(i)}" data-zrodlo="${esc(w.id)}" style="--i:${nr++}">
+        <span class="format">${esc(znacznikFormatu(w))}</span>
+        <div class="wezel-tresc">
+          <button type="button" class="wezel-nazwa" aria-controls="podglad-${esc(w.id)}" title="Pokaż surowe dane">${esc(w.nazwa)}</button>
+          <span class="wezel-co">${esc(w.krotko ?? w.co)}</span>
+          <span class="wezel-liczby">${w.liczby.slice(0, 3).map(([e, v]) => `<span><b>${liczba(v)}</b> ${esc(e)}</span>`).join("")}</span>
+        </div>
+        <a class="wezel-url" href="${esc(w.url)}" target="_blank" rel="noopener" title="Strona źródła: ${esc(domena)}"
+           aria-label="Strona źródła: ${esc(domena)}">↗</a>
+      </div>`;
+  }).join("");
+}
+
+// Prawa część schematu: etapy z przeplyw (bez pierwszego – źródła są narysowane obok); ostatni prowadzi do panelu P
+function schematEtapowHtml(etapy) {
+  return etapy.map(([etap, wartosc, opis, adres], i) => {
+    const tresc = `<span class="e-wartosc">${esc(wartosc)}</span><span class="e-etykieta">${esc(etap)}</span><span class="e-opis">${esc(opis)}</span>`;
+    return `<li class="etap" style="--i:${i}">${GROT}` +
+      (adres ? `<a class="etap-pole etap-link" href="${esc(adres)}">${tresc}</a>` : `<div class="etap-pole">${tresc}</div>`) + "</li>";
+  }).join("");
+}
+
+// Podgląd: zakładka (format + nazwa) i panel (opis, próbka surowych danych, pobrane pliki) dla każdego źródła
+function podgladHtml(zrodla) {
+  const zakladki = zrodla.map((z, i) => {
+    const [kto, co] = czesciNazwy(z.nazwa);
+    return `<button type="button" role="tab" class="zakladka ${z.tk.toLowerCase()}" id="zakladka-${esc(z.id)}" data-zrodlo="${esc(z.id)}"
+      aria-controls="podglad-${esc(z.id)}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">
+      <span class="format">${esc(znacznikFormatu(z))}</span><span class="z-nazwa"><b>${esc(kto)}</b> <small>${esc(co)}</small></span></button>`;
+  }).join("");
+  const panele = zrodla.map((z, i) => `
+    <div class="podglad-panel" role="tabpanel" id="podglad-${esc(z.id)}" aria-labelledby="zakladka-${esc(z.id)}" tabindex="0"${i ? " hidden" : ""}>
+      <dl class="podglad-opis">
+        <dt>Format</dt><dd>${esc(z.format)}</dd>
+        <dt>Pobieramy</dt><dd>${esc(z.co)}</dd>
+        <dt>Adres</dt><dd><a href="${esc(z.url)}" target="_blank" rel="noopener">${esc(z.url)}</a></dd>
+      </dl>
+      <div class="podglad-siatka">
+        <div class="podglad-probka">
+          <h3 class="podglad-naglowek">Surowe dane <span>${esc(z.probka.opis)}</span></h3>
+          ${probkaHtml(z.probka)}
+        </div>
+        <div class="podglad-pliki">
+          <h3 class="podglad-naglowek">Pobrane pliki <span>${z.pliki.length}</span></h3>
+          ${z.pliki.length ? `<div class="tabela-wrap"><table class="pliki">
+            <thead><tr><th scope="col">Plik</th><th scope="col">Rozmiar</th><th scope="col">Pobrano</th></tr></thead>
+            <tbody>${z.pliki.map((f) => `<tr><td>${esc(f.nazwa)}</td><td>${rozmiarPliku(f.kB)}</td><td>${dataPobrania(f.pobrano)}</td></tr>`).join("")}</tbody>
+          </table></div>` : '<p class="przypis">Brak pobranych plików.</p>'}
+        </div>
+      </div>
+    </div>`).join("");
+  return [zakladki, panele];
+}
+
+// Wybór źródła: zakładka, jej panel i podświetlony węzeł na schemacie
+function wybierzZrodlo(id, { fokus = false, przewin = false } = {}) {
+  document.querySelectorAll("#zakladki-zrodel [role=tab]").forEach((t) => {
+    const wybrana = t.dataset.zrodlo === id;
+    t.setAttribute("aria-selected", wybrana);
+    t.tabIndex = wybrana ? 0 : -1;
+    if (wybrana && fokus) t.focus();
+  });
+  document.querySelectorAll("#panele-zrodel [role=tabpanel]").forEach((p) => { p.hidden = p.id !== `podglad-${id}`; });
+  document.querySelectorAll("#schemat-zrodla .wezel").forEach((w) => w.classList.toggle("wybrany", w.dataset.zrodlo === id));
+  if (przewin) {
+    const ruch = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    $("#podglad").scrollIntoView({ behavior: ruch, block: "nearest" });
+  }
+}
+
+function renderAkwizycja() {
+  const A = DANE.akwizycja;
+  const [zrodla, ...etapy] = A.przeplyw;  // pierwszy krok („3 źródła danych”) opisuje lewą kolumnę schematu
+  $("#p-schemat").textContent = `${zrodla[1]} ${zrodla[0]}: ${zrodla[2]} · kliknij źródło, aby zobaczyć surowe dane`;
+  $("#schemat-zrodla").innerHTML = schematZrodelHtml(A.zrodla);
+  $("#schemat-etapy").innerHTML = schematEtapowHtml(etapy);
+  [$("#zakladki-zrodel").innerHTML, $("#panele-zrodel").innerHTML] = podgladHtml(A.zrodla);
+
+  // Kliknięcie węzła na schemacie przełącza zakładkę podglądu
+  $("#schemat-zrodla").addEventListener("click", (e) => {
+    const b = e.target.closest(".wezel-nazwa");
+    if (b) wybierzZrodlo(b.closest(".wezel").dataset.zrodlo, { przewin: true });
+  });
+  $("#zakladki-zrodel").addEventListener("click", (e) => {
+    const t = e.target.closest("[role=tab]");
+    if (t) wybierzZrodlo(t.dataset.zrodlo);
+  });
+  // Klawiatura w zakładkach: strzałki (z zawijaniem), Home i End; Enter/spacja działają jak kliknięcie
+  $("#zakladki-zrodel").addEventListener("keydown", (e) => {
+    const zakladki = [...e.currentTarget.querySelectorAll("[role=tab]")];
+    const i = zakladki.indexOf(document.activeElement);
+    const cel = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: zakladki.length - 1 }[e.key];
+    if (i < 0 || cel === undefined) return;
+    e.preventDefault();
+    wybierzZrodlo(zakladki[(cel + zakladki.length) % zakladki.length].dataset.zrodlo, { fokus: true });
+  });
+  wybierzZrodlo(A.zrodla[0].id);
+}
+
+// --- Panel P: przygotowanie danych --------------------------------------------------------
+// „202 904” / „−15” → liczba (spacje tysięcy i minus typograficzny)
+const liczbaZTekstu = (t) => Number(String(t).replace(/[\s ]/g, "").replace("−", "-").replace(",", "."));
+
+// Lejek: wejście (godziny, z ubytkami kontroli jakości) → znacznik zmiany jednostki (godziny → doby)
+// → lejek dób na jednej wspólnej skali: pełna siatka dni-miasto, kolejne ubytki („−X: powód”), wynik do analizy.
+// tysiące zawsze ze spacją (pl-PL nie grupuje liczb 4-cyfrowych), jak „4 384” w danych
+const tysiace = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+$)/g, " ");
+function lejekHtml(P) {
+  const [wejscie, ...reszta] = P.lejek;
+  const ubytkiGodz = reszta.filter(([, w], i) => liczbaZTekstu(w) <= 0);
+  const L = P.lejek_dni;
+  const [siatka, opisSiatki] = L.siatka;
+  const proc = (n) => `${(100 * n) / siatka}%`;
+  let zostaje = siatka;
+  const wiersze = L.ubytki.map(([powod, n, opis], i) => {
+    const przed = zostaje; zostaje -= n;
+    return `<li class="ld-wiersz ld-ubytek" style="--i:${i + 1}">
+      <span class="ld-pasek" aria-hidden="true"><i style="width:${proc(zostaje)}"></i><i class="duch" style="left:${proc(zostaje)};width:${proc(przed - zostaje)}"></i></span>
+      <span class="ld-tekst"><b class="ubytek">−${tysiace(n)}</b> ${esc(powod)} <small>${esc(opis)}</small></span></li>`;
+  }).join("");
+  const [wynik, opisWyniku] = L.wynik;
+  return `<div class="lejek-wejscie">
+      <span class="lp-jedn">wejście · godziny</span>
+      <span class="lp-wartosc">${esc(wejscie[1])}</span>
+      <span class="lp-etykieta">${esc(wejscie[0])}</span>
+      <ul class="lw-ubytki">${ubytkiGodz.map(([etap, w]) =>
+        `<li><b class="${/^−[1-9]/.test(w) ? "ubytek" : ""}">${esc(w)}</b> ${esc(etap)}</li>`).join("")}</ul>
+    </div>
+    <div class="lejek-zmiana">${GROT}<span><b>godziny → doby</b>średnia z min. ${P.min_godzin} z 24 h</span></div>
+    <ol class="lejek-dni" aria-label="Dni-miasto: od pełnej siatki do danych do analizy">
+      <li class="ld-wiersz ld-start" style="--i:0">
+        <span class="ld-pasek" aria-hidden="true"><i style="width:100%"></i></span>
+        <span class="ld-tekst"><b>${tysiace(siatka)}</b> dni-miasto <small>${esc(opisSiatki)}</small></span></li>
+      ${wiersze}
+      <li class="ld-wiersz ld-wynik" style="--i:${L.ubytki.length + 1}">
+        <span class="ld-pasek" aria-hidden="true"><i style="width:${proc(wynik)}"></i></span>
+        <span class="ld-tekst"><b>${tysiace(wynik)}</b> do analizy <small>${esc(opisWyniku)} · ${fmt((100 * wynik) / siatka, 0)}%</small></span></li>
+    </ol>`;
+}
+
+function wybierzZakladkeP(zakladka, fokus = false) {
+  document.querySelectorAll("#zakladki-p [role=tab]").forEach((t) => {
+    const wybrana = t === zakladka;
+    t.setAttribute("aria-selected", wybrana);
+    t.tabIndex = wybrana ? 0 : -1;
+    $(`#${t.getAttribute("aria-controls")}`).hidden = !wybrana;
+  });
+  if (fokus) zakladka.focus();
+}
+
+function renderPrzygotowanie() {
+  const P = DANE.przygotowanie;
+  const F = P.filtracja;
+  const pierwszy = P.lejek[0], ostatni = P.lejek.at(-1);
+  $("#p-lejek").textContent = `${pierwszy[1]} ${pierwszy[0]} → ${ostatni[1]} dni-miasto do analizy`;
+  $("#lejek").innerHTML = lejekHtml(P);
+
+  // Kroki: numer, nazwa, jedna linia, wynik
+  $("#lista-krokow").innerHTML = P.kroki.map(([nazwa, co, wynik], i) =>
+    `<li style="--i:${i}"><span class="kp-nr">${i + 1}</span><b class="kp-nazwa">${esc(nazwa)}</b>` +
+    `<span class="kp-co">${esc(co)}</span><span class="kp-wynik">${esc(wynik)}</span></li>`).join("");
+
+  $("#tabela-bazy").innerHTML =
+    `<thead><tr><th scope="col">Tabela / widok</th><th scope="col">Typ</th><th scope="col">Wiersze</th></tr></thead><tbody>` +
+    P.tabele.map((t) => `<tr><td><code>${esc(t.nazwa)}</code></td><td>${t.typ === "view" ? "widok" : "tabela"}</td>` +
+      `<td>${fmtInt(t.wiersze)}</td></tr>`).join("") + "</tbody>";
+
+  // Kontrola jakości: walidacja zakresu i błędy pomiarowe (usunięte / oznaczone, ale zostawione)
+  const K = P.kontrola;
+  const nazwaWsk = (w) => (w === "PM25" ? "PM2.5" : w);
+  const prog = fmtInt(K.prog), x = fmtInt(K.krotnosc);
+  $("#reguly-kontrola").innerHTML =
+    `Powyżej ${prog} µg/m³: a) ${x}× więcej niż inne stacje, b) ${x}× więcej niż godzinę przed i po. ` +
+    `<b>Oba = błąd, usuwamy.</b> Jeden = zostaje.`;
+  const komorka = (n, klasa = "") => (n ? `<td class="${klasa}">${fmtInt(n)}</td>` : '<td class="brak">0</td>');
+  $("#tabela-kontrola").innerHTML =
+    `<thead><tr><th scope="col">Stacja</th><th scope="col">Wskaźnik</th><th scope="col">Godzin</th>` +
+    `<th scope="col">&lt; 0</th><th scope="col">PM2.5 &gt; PM10</th><th scope="col">Usunięte (a i b)</th>` +
+    `<th scope="col">Tylko a) – zostaje</th><th scope="col">Tylko b) – zostaje</th></tr></thead><tbody>` +
+    K.stacje.map((s) => `<tr><td>${esc(s.miasto)}</td><td>${nazwaWsk(s.wskaznik)}</td><td>${fmtInt(s.godzin_po_kontroli)}</td>` +
+      `${komorka(s.ujemne, "brak-dni")}${komorka(s.pm25_ponad_pm10, "brak-dni")}${komorka(s.usuniete, "brak-dni")}` +
+      `${komorka(s.odstaje_od_innych)}${komorka(s.skok_w_czasie)}</tr>`).join("") + "</tbody>";
+  const kiedy = (czas) => `${czas.slice(8, 10)}.${czas.slice(5, 7)}.${czas.slice(0, 4)} godz. ${czas.slice(11, 13)}`;
+  const powod = { "usunięta": "oba warunki → USUNIĘTA",
+    "odstaje od innych stacji": "tylko a), bo wysoko było też godzinę przed i po → ZOSTAJE",
+    "skok w czasie": "tylko b), bo inne stacje też miały wysoko → ZOSTAJE" };
+  $("#przyklady-kontrola").innerHTML = (K.przyklady ?? []).map((p) =>
+    `<p class="przypis"><b>${esc(p.miasto)}, ${nazwaWsk(p.wskaznik)}, ${kiedy(p.czas)}:</b> ${fmt(p.wartosc)} µg/m³, ` +
+    `inne stacje ${fmt(p.mediana_innych)}, godzinę przed ${fmt(p.przed)}, godzinę po ${fmt(p.po)} → ${esc(powod[p.decyzja] ?? p.decyzja)}</p>`).join("");
+  const suma = (k) => K.stacje.reduce((a, s) => a + s[k], 0);
+  const niemozliwe = suma("ujemne") + K.stacje.filter((s) => s.wskaznik === "PM25").reduce((a, s) => a + s.pm25_ponad_pm10, 0);
+  $("#przypis-kontrola").textContent =
+    `Usunięto ${fmtInt(suma("usuniete"))}, oznaczono ${fmtInt(suma("odstaje_od_innych") + suma("skok_w_czasie"))}. ` +
+    `Wartości niemożliwych (< 0, PM2.5 > PM10): ${fmtInt(niemozliwe)}.`;
+
+  // Filtracja: tabela braków (szczegóły) i wykres powodów (PM10, PM2.5, pogoda – najgorsza zmienna pogodowa)
+  const ZMIENNE_F = [["pm10", "PM10"], ["pm25", "PM2.5"], ["temp_sr", "temperatura"], ["opad", "opad"],
+                     ["wiatr_sr", "wiatr"], ["wilgotnosc", "wilgotność"], ["cisnienie", "ciśnienie"]];
+  const brak = (m, z) => F.braki.find((b) => b.miasto === m && b.zmienna === z)?.dni ?? 0;
+  $("#tabela-filtracja").innerHTML =
+    `<thead><tr><th scope="col">Dni z brakiem</th>${ZMIENNE_F.map(([, n]) => `<th scope="col">${n}</th>`).join("")}</tr></thead><tbody>` +
+    listaMiast().map((m) => `<tr><td>${esc(m)}</td>${ZMIENNE_F.map(([z]) => {
+      const n = brak(m, z);
+      return n ? `<td class="brak-dni">${fmtInt(n)}</td>` : '<td class="brak">–</td>';
+    }).join("")}</tr>`).join("") + "</tbody>";
+
+  $("#p-filtracja").textContent = `dzień zostaje, gdy wszystkie ${listaMiast().length} miasta mają PM i pogodę · dni z brakiem`;
+  const POWODY = [["pm10", "PM10"], ["pm25", "PM2.5"], ["pogoda", "pogoda"]];
+  const ilePowod = (m, z) => (z === "pogoda" ? Math.max(0, ...ZMIENNE_F.slice(2).map(([k]) => brak(m, k))) : brak(m, z));
+  const maxB = Math.max(1, ...listaMiast().flatMap((m) => POWODY.map(([z]) => ilePowod(m, z))));
+  $("#wykres-brakow").innerHTML =
+    `<p class="braki-legenda" aria-hidden="true">${POWODY.map(([z, n]) => `<span><i class="b-${z}"></i>${n}</span>`).join("")}</p>` +
+    listaMiast().map((m) => `<div class="braki-miasto"><span class="bm-nazwa">${esc(m)}</span><div class="bm-paski">` +
+      POWODY.map(([z, n]) => { const v = ilePowod(m, z);
+        return `<span class="bm-wiersz" title="${n}: ${v} dni"><i class="b-${z}" style="width:${(100 * v) / maxB}%"></i><small>${v || "–"}</small></span>`; }).join("") +
+      "</div></div>").join("");
+  $("#wykres-brakow").setAttribute("aria-label", "Dni z brakiem danych: " + listaMiast().map((m) =>
+    `${m} – ${POWODY.map(([z, n]) => `${n} ${ilePowod(m, z)}`).join(", ")}`).join("; "));
+  let najw = ["", "", -1];
+  listaMiast().forEach((m) => POWODY.forEach(([z, n]) => { const v = ilePowod(m, z); if (v > najw[2]) najw = [m, n, v]; }));
+  $("#przypis-filtracja").innerHTML =
+    `Odpadło <b>${fmtInt(F.dni_kalendarzowe - F.dni_kompletne)}</b> z ${fmtInt(F.dni_kalendarzowe)} dni, zostało ` +
+    `<b>${fmtInt(F.dni_kompletne)}</b> (${fmt(100 * F.dni_kompletne / F.dni_kalendarzowe, 0)}%). ` +
+    `Najwięcej braków: ${esc(najw[1])}, ${esc(najw[0])} (${fmtInt(najw[2])} dni).`;
+
+  // Zakładki szczegółów: kliknięcie, strzałki (z zawijaniem), Home i End
+  const lista = $("#zakladki-p");
+  lista.addEventListener("click", (e) => { const t = e.target.closest("[role=tab]"); if (t) wybierzZakladkeP(t); });
+  lista.addEventListener("keydown", (e) => {
+    const zakladki = [...lista.querySelectorAll("[role=tab]")];
+    const i = zakladki.indexOf(document.activeElement);
+    const cel = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: zakladki.length - 1 }[e.key];
+    if (i < 0 || cel === undefined) return;
+    e.preventDefault();
+    wybierzZakladkeP(zakladki[(cel + zakladki.length) % zakladki.length], true);
+  });
+}
+
+// Przykład jednej doby: 24 wartości godzinowe przed i po kontroli, średnia dobowa przed i po
+function renderDoba() {
+  const P = DANE.przygotowanie;
+  const d = P.przyklad_doby;
+  if (!d.length) { $("#karta-doba").hidden = true; return; }
+  const sr = (k) => { const v = d.map((x) => x[k]).filter((x) => x != null); return [v.reduce((a, b) => a + b, 0) / v.length, v.length]; };
+  const [srPrzed, nPrzed] = sr("przed"), [srPo, nPo] = sr("po");
+  const usuniete = d.filter((x) => x.przed != null && x.po == null);
+  const wsk = d[0].wskaznik === "PM25" ? "PM2.5" : d[0].wskaznik;
+  const data = `${d[0].data.slice(8, 10)}.${d[0].data.slice(5, 7)}.${d[0].data.slice(0, 4)}`;
+  $("#t-doba").textContent = `Kontrola jakości: ${d[0].miasto}, ${wsk}, ${data}`;
+  $("#p-doba").textContent = "słupek = godzina · czerwony = usunięty błąd · linie = średnia doby";
+  const stala = (v) => d.map(() => v);
+  nowyWykres("wykres-doba", {
+    type: "bar",
+    data: {
+      labels: d.map((x) => String(x.godzina)),
+      datasets: [
+        { type: "bar", label: "pomiar po kontroli", data: d.map((x) => x.po), backgroundColor: css("--accent"), grouped: false, order: 2 },
+        { type: "bar", label: "usunięty (błąd)", data: d.map((x) => (x.przed != null && x.po == null ? x.przed : null)),
+          backgroundColor: css("--class-zla"), grouped: false, order: 2 },
+        { type: "line", label: `średnia przed kontrolą: ${fmt(srPrzed)}`, data: stala(srPrzed), borderColor: css("--text-secondary"),
+          borderDash: [6, 4], borderWidth: 2, pointRadius: 0, order: 1 },
+        { type: "line", label: `średnia po kontroli: ${fmt(srPo)}`, data: stala(srPo), borderColor: css("--text-primary"),
+          borderWidth: 3, pointRadius: 0, order: 1 },
+      ],
+    },
+    options: {
+      plugins: { tooltip: { callbacks: { label: (c) => `${c.dataset.label.split(":")[0]}: ${fmt(c.raw)} µg/m³` } } },
+      scales: { x: { title: { display: true, text: "godzina (koniec przedziału, CET)" }, grid: { display: false } },
+                y: { beginAtZero: true, title: { display: true, text: `${wsk} [µg/m³]` } } },
+    },
+  });
+  const godz = usuniete.map((x) => `${x.godzina}:00 (${fmt(x.przed)} µg/m³)`).join(", ");
+  $("#przypis-doba").textContent =
+    `Usunięto ${godz}. Średnia: ${fmt(srPrzed)} → ${fmt(srPo)} µg/m³. ` +
+    `Zostało ${nPo}/24 h – doba ${nPo >= P.min_godzin ? "zostaje" : "odpada"} (minimum ${P.min_godzin}).`;
+}
+
+// --- Panel E: eksploracja danych (EDA) i testy -----------------------------------------------
+const statEda = (z) => DANE.eksploracja.statystyki.find((s) => s.zmienna === z);
+
+function renderEksploracja() {
+  const S = DANE.eksploracja.statystyki;
+  const pm10 = statEda("PM10"), opad = statEda("opad"), cisn = statEda("ciśnienie"),
+    temp = statEda("temperatura"), wiatr = statEda("prędkość wiatru");
+  $("#kafle-eda").innerHTML = `
+    <div class="kafel wyrozniony"><div class="k-etykieta">PM10: średnia vs mediana [µg/m³]</div>
+      <div class="k-wartosc">${fmt(pm10.srednia)} vs ${fmt(pm10.mediana)}</div>
+      <div class="k-opis">średnia jest wyższa, bo podbijają ją rzadkie dni ze smogiem</div></div>
+    <div class="kafel"><div class="k-etykieta">Skośność PM10 po logarytmie</div>
+      <div class="k-wartosc">${fmt(pm10.skosnosc_po_log, 2)}</div>
+      <div class="k-opis">przed: ${fmt(pm10.skosnosc, 2)} – po logarytmie rozkład jest prawie symetryczny</div></div>
+    <div class="kafel"><div class="k-etykieta">Opad: dni bez opadu</div>
+      <div class="k-wartosc">${fmt(opad.udzial_zer_pct, 0)}%</div>
+      <div class="k-opis">mediana ${fmt(opad.mediana)} mm, średnia ${fmt(opad.srednia)} mm</div></div>
+    <div class="kafel"><div class="k-etykieta">Ciśnienie: odchylenie standardowe</div>
+      <div class="k-wartosc">${fmt(cisn.odch_std)} hPa</div>
+      <div class="k-opis">na jednej stacji tylko ${fmt(cisn.odch_std_w_grupie)} – resztę daje różna wysokość stacji</div></div>`;
+
+  const dominanta = (s) => { const d = Number.isInteger(s.dominanta_do - s.dominanta_od) ? 0 : 1; return `${fmt(s.dominanta_od, d)}–${fmt(s.dominanta_do, d)}`; };
+  $("#p-opisowe").textContent = "typowa wartość, rozrzut i kształt rozkładu każdej zmiennej";
+  $("#tabela-opisowe").innerHTML =
+    `<thead><tr><th scope="col">Zmienna</th><th scope="col">n</th><th scope="col">Średnia</th><th scope="col">Mediana</th>` +
+    `<th scope="col" title="przedział modalny histogramu">Dominanta</th><th scope="col">Odch. std.</th>` +
+    `<th scope="col" title="w jednostkach do kwadratu">Wariancja</th><th scope="col" title="odchylenie / średnia">Wsp. zmienności</th>` +
+    `<th scope="col">Skośność</th><th scope="col" title="kurtoza nadwyżkowa – rozkład normalny ma 0">Kurtoza</th>` +
+    `<th scope="col">Kształt rozkładu</th></tr></thead><tbody>` +
+    S.map((s) => `<tr><td><b>${esc(s.zmienna)}</b> <span class="jedn">[${esc(s.jednostka)}]</span></td><td>${fmtInt(s.n)}</td>` +
+      `<td>${fmt(s.srednia)}</td><td>${fmt(s.mediana)}</td><td>${dominanta(s)}</td><td>${fmt(s.odch_std)}</td>` +
+      `<td>${fmt(s.wariancja)}</td>` +
+      (s.wsp_zmiennosci_pct == null ? '<td class="brak" title="°C nie ma prawdziwego zera – stosunek odchylenia do średniej nic nie znaczy">–</td>'
+                                    : `<td>${fmt(s.wsp_zmiennosci_pct, 0)}%</td>`) +
+      `<td>${fmt(s.skosnosc, 2)}</td><td>${fmt(s.kurtoza, 2)}</td>` +
+      `<td>${esc(s.ksztalt)}${s.skosnosc_po_log == null ? "" : ` <span class="jedn">(po log: ${fmt(s.skosnosc_po_log, 2)})</span>`}</td></tr>`).join("") +
+    "</tbody>";
+  $("#przypis-opisowe").textContent = `Pył: ${fmtInt(pm10.n)} dni, pogoda: ${fmtInt(temp.n)} dni. Rozkład normalny: skośność 0, kurtoza 0.`;
+
+  const li = (t) => `<li>${t}</li>`;
+  $("#wnioski-eda").innerHTML = [
+    `<b>Pył jest skośny</b> (mediana ${fmt(pm10.mediana)} < średnia ${fmt(pm10.srednia)}) → korelacja Spearmana zamiast Pearsona i mediana obok średniej.`,
+    `<b>Opad:</b> ${fmt(opad.udzial_zer_pct, 0)}% dni bez deszczu → logarytm w klasteryzacji.`,
+    `<b>Różne skale</b> (wariancja PM10 ${fmt(pm10.wariancja)}, wiatru ${fmt(wiatr.wariancja)}) → standaryzacja przed klasteryzacją.`,
+    `<b>Ciśnienie</b> zależy od wysokości stacji → liczymy różnicę od średniej stacji.`,
+    `<b>Temperatura</b> ma dwa szczyty (zima, lato) → wyniki osobno dla sezonów.`,
+  ].map(li).join("");
+
+  // Reguła 68–95–99,7: porównanie z rozkładem normalnym (różnica > 5 p.p. lub > 1% poza 3σ – wyróżniona)
+  const NORMALNY = [68.269, 95.44997, 99.730];  // P(|Z| ≤ k) w % dla k = 1, 2, 3
+  const pct = (v, wzor, tol) => `<td class="${Math.abs(v - wzor) > tol ? "odbiega" : ""}">${fmt(v)}%</td>`;
+  $("#tabela-3sigma").innerHTML =
+    `<thead><tr><th scope="col">Zmienna</th><th scope="col">Przekształcenie</th><th scope="col">w ±1σ</th>` +
+    `<th scope="col">w ±2σ</th><th scope="col">w ±3σ</th><th scope="col">poza ±3σ</th></tr></thead><tbody>` +
+    `<tr class="wzorzec"><td><b>rozkład normalny</b></td><td>–</td>${NORMALNY.map((v) => `<td>${fmt(v)}%</td>`).join("")}<td>0,3%</td></tr>` +
+    DANE.eksploracja.regula_3sigma.map((r) => {
+      const poza = 100 * r.poza_3_sigma / r.n;
+      return `<tr><td>${esc(r.zmienna)}</td><td>${esc(r.przeksztalcenie)}</td>${pct(r.w_1_sigma_pct, NORMALNY[0], 5)}` +
+        `${pct(r.w_2_sigma_pct, NORMALNY[1], 2)}${pct(r.w_3_sigma_pct, NORMALNY[2], 1)}` +
+        `<td class="${poza > 1 ? "odbiega" : ""}">${fmtInt(r.poza_3_sigma)} (${fmt(poza)}%)</td></tr>`;
+    }).join("") + "</tbody>";
+  const T = DANE.eksploracja.pm10_ponad_3sigma;
+  $("#przypis-3sigma").textContent =
+    `Poza 3σ PM10 jest ${fmtInt(T.dni)} dni – ${T.w_tym_zle === T.dni ? "wszystkie" : fmtInt(T.w_tym_zle)} ze smogiem. ` +
+    `Dlatego nie usuwamy danych regułą 3σ.`;
+
+  $("#wybor-zmienna").innerHTML = ZMIENNE.map(([z, skrot]) =>
+    `<button type="button" role="radio" data-wartosc="${z}" aria-checked="${z === STAN.zmiennaEda}" title="${z}">${skrot}</button>`).join("");
+}
+
+// Testy istotności dla pytań 1–3 (wiersze bez wskaźnika – korelacje – widoczne zawsze)
+const fmtP = (p) => (p == null ? "–" : p < 0.001 ? "&lt; 0,001" : fmt(p, 3));
+function renderTesty() {
+  const E = DANE.eksploracja;
+  const wiersze = E.testy.filter((t) => t.wskaznik == null || t.wskaznik === STAN.wskaznik)
+    .sort((a, b) => a.pytanie - b.pytanie);
+  $("#p-testy").textContent = `czy wyniki pytań 1–3 mogą być przypadkiem · wskaźnik: ${STAN.wskaznik}`;
+  $("#tabela-testy").innerHTML =
+    `<thead><tr><th scope="col">Pyt.</th><th scope="col">Test</th><th scope="col">Hipoteza zerowa (H0)</th><th scope="col">Dane</th>` +
+    `<th scope="col">Statystyka</th><th scope="col">p</th><th scope="col">Wielkość efektu</th><th scope="col">Wniosek</th></tr></thead><tbody>` +
+    wiersze.map((t) => {
+      const efekt = t.efekt_nazwa.includes("pary") ? fmtInt(t.efekt) : t.efekt_nazwa.startsWith("r ") ? fmtR(t.efekt)
+        : fmt(t.efekt, t.efekt_nazwa.startsWith("różnica") ? 1 : 2);
+      const wniosek = t.wniosek === "odrzucamy H0" ? "<b>odrzucamy H0</b>" : t.wniosek === "zob. uwagi" ? "" : esc(t.wniosek);
+      return `<tr><td>${t.pytanie}</td><td>${esc(t.test)}</td><td>${esc(t.h0)}</td><td>${esc(t.dane)}</td>` +
+        `<td>${esc(t.statystyka)}</td><td class="${t.p != null && t.p >= 0.05 ? "odbiega" : ""}">${fmtP(t.p)}</td>` +
+        `<td>${esc(t.efekt_nazwa)}: ${efekt}</td>` +
+        `<td>${wniosek}${t.uwagi ? `<div class="jedn">${esc(t.uwagi)}</div>` : ""}</td></tr>`;
+    }).join("") + "</tbody>";
+  const ak = E.autokorelacja.filter((a) => a.wskaznik === STAN.wskaznik).map((a) => a.r_lag1);
+  $("#przypis-testy").textContent =
+    `p < 0,05 = raczej nie przypadek. Kolejne dni są podobne (autokorelacja ${fmt(Math.min(...ak), 2)}–${fmt(Math.max(...ak), 2)}), ` +
+    `dlatego testy powtórzono na średnich miesięcznych.`;
+}
+
+function renderHistogram() {
+  const s = statEda(STAN.zmiennaEda);
+  const h = DANE.eksploracja.histogramy[STAN.zmiennaEda];
+  // Długi ogon: oś do 99,5 percentyla, żeby było widać kształt (pominięte obserwacje opisane pod wykresem)
+  let koniec = h.length;
+  if (s.skosnosc >= 1) {
+    const suma = h.reduce((a, b) => a + b[2], 0);
+    let narast = 0;
+    koniec = h.findIndex((b) => (narast += b[2]) / suma >= 0.995) + 1;
+  }
+  const widoczne = h.slice(0, koniec);
+  const pominiete = h.slice(koniec).reduce((a, b) => a + b[2], 0);
+  const szer = h[0][1] - h[0][0];
+  const d = Number.isInteger(szer) ? 0 : 1;
+  $("#t-histogram").textContent = `Rozkład: ${s.zmienna} [${s.jednostka}]`;
+  nowyWykres("wykres-histogram", {
+    type: "bar",
+    data: {
+      labels: widoczne.map(([od]) => fmt(od, d)),
+      datasets: [{ label: "obserwacje", data: widoczne.map((b) => b[2]), barPercentage: 1, categoryPercentage: 1,
+        backgroundColor: widoczne.map(([od]) => (od === s.dominanta_od ? css("--accent") : zPrzezroczystoscia(css("--accent"), 0.45))) }],
+    },
+    options: {
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { title: (c) => { const [od, doo] = widoczne[c[0].dataIndex]; return `${fmt(od, d)}–${fmt(doo, d)} ${s.jednostka}`; },
+                                label: (c) => `${fmtInt(c.raw)} obserwacji` } },
+        linieRozkladu: { od: h[0][0], szer, linie: [
+          { wartosc: s.srednia, kolor: css("--season-grzewczy") },
+          { wartosc: s.mediana, kolor: css("--text-primary"), przerywana: true }] },
+      },
+      scales: { x: { title: { display: true, text: `${s.zmienna} [${s.jednostka}] – początek przedziału` }, grid: { display: false } },
+                y: { beginAtZero: true, title: { display: true, text: "liczba obserwacji" } } },
+    },
+    plugins: [linieRozkladu],
+  });
+  $("#przypis-histogram").innerHTML =
+    `<span class="legenda-linia srednia"></span> średnia ${fmt(s.srednia)} · <span class="legenda-linia mediana"></span> mediana ` +
+    `${fmt(s.mediana)} · dominanta ${fmt(s.dominanta_od, d)}–${fmt(s.dominanta_do, d)} ${esc(s.jednostka)}` +
+    (pominiete ? ` · bez ${fmtInt(pominiete)} najwyższych wartości` : "");
+}
+
+// --- Panel 1: sezony -------------------------------------------------------------------------
 // Liczba dni kalendarzowych sezonu w badanym okresie (np. 547 dni sezonu grzewczego w latach 2023–2025)
 function dniSezonu(sezon) {
   const { od, do: koniec } = DANE.meta.zakres;
@@ -183,7 +680,6 @@ function renderKafle() {
     </div>`;
 }
 
-// --- Pytanie 1: sezony --------------------------------------------------------------
 function renderSezonowy() {
   const miasta = listaMiast();
   const zbiory = [["letni", "--season-letni"], ["grzewczy", "--season-grzewczy"]].map(([sezon, token]) => ({
@@ -253,7 +749,7 @@ function renderMiesieczny() {
   });
 }
 
-// --- Pytanie 2: pogoda --------------------------------------------------------------
+// --- Panel 2: pogoda -------------------------------------------------------------------------
 function renderKorelacje() {
   // Macierz korelacji Spearmana (odporna na skośny rozkład stężeń), jak na wykresie korelacje.png
   const wiersze = DANE.korelacje.macierz.filter((x) => x.zakres === STAN.zakres);
@@ -274,16 +770,12 @@ function renderKorelacje() {
   }).join("")}</tr>`).join("");
   $("#macierz-korelacji").innerHTML = `${naglowek}<tbody>${cialo}</tbody>`;
 
-  // Najsilniejsza para: wybrany wskaźnik z pogodą oraz dwie zmienne pogodowe (współliniowość cech modelu)
-  const najsilniejsza = (pary) => pary.reduce((x, y) => (Math.abs(y.r) > Math.abs(x.r) ? y : x));
+  // Najsilniejszy związek wybranego wskaźnika z pogodą
   const pogoda = ZMIENNE.slice(2).map(([z]) => z);
-  const zPylem = najsilniejsza(pogoda.map((z) => ({ opis: z, r: r(STAN.wskaznik, z) })));
-  const wPogodzie = najsilniejsza(pogoda.flatMap((a, i) => pogoda.slice(i + 1).map((b) => ({ opis: `${a} i ${b}`, r: r(a, b) }))));
+  const zPylem = pogoda.map((z) => ({ opis: z, r: r(STAN.wskaznik, z) }))
+    .reduce((x, y) => (Math.abs(y.r) > Math.abs(x.r) ? y : x));
   $("#przypis-korelacji").textContent =
-    `${STAN.wskaznik} najmocniej wiąże się z: ${zPylem.opis} (r = ${fmtR(zPylem.r)}). ` +
-    `Z samej pogody najmocniej powiązane są ${wPogodzie.opis} (r = ${fmtR(wPogodzie.r)}). ` +
-    `Ujemne r: gdy jedno rośnie, drugie spada. Przekreślone pary są nieistotne – najedź na komórkę, żeby zobaczyć p. ` +
-    `Przy ${fmtInt(n)} dniach istotne jest już |r| > ${fmt(1.96 / Math.sqrt(n - 2 + 1.96 ** 2), 3)}, więc liczy się siła związku.`;
+    `${STAN.wskaznik} najmocniej wiąże się z: ${zPylem.opis} (r = ${fmtR(zPylem.r)}). Przekreślone = nieistotne.`;
 }
 
 function renderRozrzut() {
@@ -311,7 +803,7 @@ function renderRozrzut() {
   });
 }
 
-// --- Pytanie 3: mapa i ranking -------------------------------------------------------
+// --- Panel 3: ranking i mapa -----------------------------------------------------------------
 function opisStacji(s) {
   const biezace = Object.entries(s.biezace || {})
     .map(([w, v]) => `${w}: <strong>${fmt(v.wartosc)}</strong> µg/m³ <span style="opacity:.7">(${v.czas})</span>`).join("<br>");
@@ -353,136 +845,118 @@ function zbudujMape() {
 function renderRanking() {
   const kolumny = [
     ["#", (w) => w.pozycja],
-    ["Miasto", (w) => `<span class="miasto"><i class="kropka" style="background:${kolorMiasta(w.miasto)}"></i>${w.miasto}</span>` +
-      (w.jednostka.includes(w.miasto) ? "" : `<span class="podpis">GUS: ${w.jednostka}</span>`)],
+    ["Miasto", (w) => `<span class="miasto"><i class="kropka" style="background:${kolorMiasta(w.miasto)}"></i>${w.miasto}</span>`],
     ["PM10 śr.", (w) => fmt(w.pm10_srednia)],
     ["PM2.5 śr.", (w) => (w.pm25_srednia == null ? '<span class="brak">brak</span>' : fmt(w.pm25_srednia))],
     ["Dni &gt;50 / rok", (w) => fmt(w.dni_powyzej_50_rocznie)],
     ["Dni złe %", (w) => fmt(w.dni_zla_pct)],
-    ["Ludność", (w) => fmtInt(w.ludnosc)],
-    ["Sam. os. / 1000", (w) => fmtInt(w.samochody_na_1000)],
-    ["Os. / km²", (w) => fmtInt(w.gestosc_zaludnienia)],
   ];
   $("#tabela-ranking").innerHTML =
     `<thead><tr>${kolumny.map(([n]) => `<th scope="col">${n}</th>`).join("")}</tr></thead><tbody>` +
     DANE.ranking.ranking.map((w) => `<tr>${kolumny.map(([, f]) => `<td>${f(w)}</td>`).join("")}</tr>`).join("") + "</tbody>";
 
-  const kor = Object.fromEntries(DANE.ranking.korelacje_gus.map((k) => [k.cecha, k.spearman_r]));
-  const rok = Math.max(...DANE.ranking.gus.map((g) => g.rok));
-  const pLudnosc = DANE.eksploracja.testy.find((t) => t.h0.includes("ludno"))?.p;
-  $("#przypis-ranking").textContent =
-    `Dane GUS za ${rok} r. Korelacja średniego PM10 z ludnością: ${fmtR(kor.ludnosc)}, z samochodami na 1000 mieszk.: ` +
-    `${fmtR(kor.samochody_na_1000)}, z gęstością zaludnienia: ${fmtR(kor.gestosc_zaludnienia)}. ` +
-    `Przy ${DANE.ranking.ranking.length} miastach to tylko wskazówka` +
-    (pLudnosc == null ? "." : ` – nawet wynik dla ludności jest nieistotny (p = ${fmt(pLudnosc, 3)}).`);
+  // Test Friedmana na średnich miesięcznych (ostrożniejszy niż na dniach) – czy kolejność miast nie jest przypadkiem
+  const t = DANE.eksploracja.testy.find((x) => x.pytanie === 3 && x.wskaznik === "PM10" && x.test.includes("miesięczne"));
+  $("#przypis-ranking").innerHTML = t == null ? "" :
+    `Różnice między miastami ${t.p < 0.05 ? "są" : "nie są"} istotne (test Friedmana na średnich miesięcznych, p ${t.p < 0.001 ? "" : "= "}${fmtP(t.p)}).`;
 }
 
-// --- Pytanie 4: model ------------------------------------------------------------------
-function renderWyborModelu() {
-  $("#wybor-model").innerHTML = DANE.model.modele.map((m) =>
-    `<button type="button" role="radio" data-wartosc="${m.model}" aria-checked="${m.model === STAN.model}">${m.model}</button>`).join("");
-  const p = DANE.model.podzial;
-  $("#opis-model").textContent =
-    `Czy z samej pogody, sezonu i miasta da się przewidzieć, czy dzień będzie dobry, umiarkowany czy zły? ` +
-    `Model uczy się na latach ${p.train} (${fmtInt(p.n_train)} dni), a sprawdzamy go na roku ${p.test} (${fmtInt(p.n_test)} dni).`;
+// Ostatnie 24 h z API GIOŚ na tle dni tego samego miesiąca z lat 2023–2025 (kreska = jeden dzień)
+const MIESIACE_DOPELNIACZ = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia",
+  "września", "października", "listopada", "grudnia"];
+
+function renderTeraz() {
+  const T = DANE.stacje.teraz;
+  $("#karta-teraz").hidden = !T;
+  if (!T) return;
+  const pole = POLE[STAN.wskaznik];
+  const wiersze = listaMiast().map((m) => T.wiersze.find((w) => w.miasto === m && w.wskaznik === pole)).filter(Boolean);
+  const miesiac = MIESIACE_DOPELNIACZ[T.miesiac - 1];
+  const lata = `${DANE.meta.zakres.od.slice(0, 4)}–${DANE.meta.zakres.do.slice(0, 4)}`;
+  // Wspólna skala dla wszystkich miast, żeby paski dało się porównać
+  const najwyzej = Math.max(...wiersze.flatMap((w) => [w.srednia_24h, ...T.historia[w.miasto][pole]]));
+  const krok = najwyzej <= 50 ? 10 : 25;
+  const max = Math.ceil(najwyzej / krok) * krok;
+  const x = (v) => `${(100 * v) / max}%`;
+  const opis = (w) => `${w.miasto}: ostatnie 24 h ${fmt(w.srednia_24h)} µg/m³, mediana dni ${miesiac} ${fmt(w.mediana_historia)} µg/m³`;
+
+  $("#t-teraz").textContent = `${STAN.wskaznik} teraz na tle lat ${lata}`;
+  $("#p-teraz").textContent = `średnia z ostatnich 24 h z API GIOŚ (do ${dataPobrania(wiersze[0].do)}) · µg/m³`;
+  $("#teraz").innerHTML = wiersze.map((w) => `<div class="t-wiersz">
+      <span class="miasto"><i class="kropka" style="background:${kolorMiasta(w.miasto)}"></i>${w.miasto}</span>
+      <span class="t-wartosc">${fmt(w.srednia_24h)}<small>µg/m³</small>${w.klasa ? znacznikKlasy(w.klasa) : ""}</span>
+      <div class="t-pasek" role="img" aria-label="${esc(opis(w))}">
+        ${T.historia[w.miasto][pole].map((v) => `<i class="t-dzien" style="left:${x(v)}"></i>`).join("")}
+        <i class="t-teraz" style="left:${x(w.srednia_24h)};background:${kolorMiasta(w.miasto)}" title="${esc(opis(w))}"></i>
+      </div>
+      <span class="t-opis">więcej niż w <strong>${fmtInt(w.nizej_pct)}%</strong> dni ${miesiac}</span>
+    </div>`).join("") +
+    `<div class="t-wiersz t-os" aria-hidden="true"><span></span><span></span><div class="t-skala">${
+      Array.from({ length: max / krok + 1 }, (_, i) => `<span style="left:${x(i * krok)}">${i * krok}</span>`).join("")
+    }</div><span></span></div>`;
+  $("#przypis-teraz").textContent = `Kreska = średnia jednego dnia ${miesiac} ${lata} (${wiersze[0].dni_historia} dni po filtracji), ` +
+    "kółko = ostatnie 24 h. Ostatnie 24 h to nie doba kalendarzowa, więc porównanie jest orientacyjne.";
 }
 
-function renderModel() {
-  const m = DANE.model.modele.find((x) => x.model === STAN.model);
-  const bazowy = DANE.model.modele.find((x) => x.model === "klasa większościowa");
-  const porownanie = (k) => (m === bazowy ? "" : ` · bazowo ${fmt(bazowy[k], 2)}`);
-  $("#kafle-model").innerHTML = `
-    <div class="kafel"><div class="k-etykieta">Balanced accuracy</div><div class="k-wartosc">${fmt(m.balanced_accuracy, 2)}</div>
-      <div class="k-opis">średnia trafność w każdej klasie${porownanie("balanced_accuracy")}</div></div>
-    <div class="kafel"><div class="k-etykieta">F1 macro</div><div class="k-wartosc">${fmt(m.f1_macro, 2)}</div>
-      <div class="k-opis">każda klasa liczy się tak samo${porownanie("f1_macro")}</div></div>
-    <div class="kafel"><div class="k-etykieta">Accuracy</div><div class="k-wartosc">${fmt(m.accuracy, 2)}</div>
-      <div class="k-opis">${m === bazowy ? "zawsze „dobra”, bo większość dni jest dobra" : "niższe niż bazowe, bo model celowo szuka rzadkich dni złych"}</div></div>
-    <div class="kafel"><div class="k-etykieta">Walidacja (2023–2024)</div><div class="k-wartosc">${m.cv_balanced_accuracy == null ? "–" : fmt(m.cv_balanced_accuracy, 2)}</div>
-      <div class="k-opis">${m.parametry ? Object.entries(m.parametry).map(([k, v]) => `${k}=${v ?? "brak"}`).join(", ") : "bez strojenia"}</div></div>`;
+// --- Panel 4: klasy jakości dnia --------------------------------------------------------
+const MIESIACE_PELNE = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień",
+  "październik", "listopad", "grudzień"];
 
-  // Macierz pomyłek: liczba dni i udział w wierszu (klasie rzeczywistej)
-  const etyk = DANE.model.klasy.etykiety;
-  const cialo = m.confusion_matrix.map((wiersz, i) => {
-    const suma = wiersz.reduce((a, b) => a + b, 0);
-    return `<tr><th scope="row">${znacznikKlasy(etyk[i])}</th>${wiersz.map((v, j) => {
-      const udzial = suma ? v / suma : 0;
-      const styl = `background:${zPrzezroczystoscia(css("--seq"), 0.08 + udzial * 0.85)};` +
-        `color:${udzial > 0.55 ? css("--on-accent") : css("--text-primary")};` +
-        (i === j ? "box-shadow: inset 0 0 0 2px var(--text-primary);" : "");
-      return `<td style="${styl}" title="rzeczywista: ${etyk[i]}, przewidziana: ${etyk[j]}">${fmtInt(v)}<br><small>${fmt(udzial * 100, 0)}%</small></td>`;
-    }).join("")}</tr>`;
-  }).join("");
-  $("#macierz-pomylek").innerHTML =
-    `<thead><tr><th scope="col"></th>${etyk.map((e) => `<th scope="col">${e}</th>`).join("")}</tr></thead><tbody>${cialo}</tbody>`;
+function renderKlasy() {
+  const K = DANE.klasy.klasy;
+  const [dobra, , zla] = DANE.meta.progi_pm10.klasy;
+  const etykiety = DANE.meta.progi_pm10.klasy;
+  const wiersz = (podzial, grupa, klasa) => K.find((r) => r.podzial === podzial && r.grupa === grupa && r.klasa === klasa);
+  const najwiecej = (wiersze) => wiersze.reduce((a, b) => (b.udzial_pct > a.udzial_pct ? b : a));
+  const miesiace = MIESIACE.map((_, i) => String(i + 1));
+  const wszystkie = (klasa) => wiersz("wszystkie", "wszystkie dni", klasa);
+  const dniRazem = etykiety.reduce((a, k) => a + wszystkie(k).dni, 0);
+  const najgorszeMiasto = najwiecej(listaMiast().map((m) => wiersz("miasto", m, zla)));
+  const najgorszyMiesiac = najwiecej(miesiace.map((m) => wiersz("miesiac", m, zla)));
 
-  $("#tabela-klasy").innerHTML =
-    `<thead><tr><th scope="col">Klasa</th><th scope="col">Precyzja</th><th scope="col">Czułość</th><th scope="col">F1</th><th scope="col" title="liczba dni w zbiorze testowym">Dni</th></tr></thead><tbody>` +
-    etyk.map((e) => {
-      const k = m.per_class[e];
-      return `<tr><td>${znacznikKlasy(e)}</td><td>${fmt(k.precision, 2)}</td><td>${fmt(k.recall, 2)}</td><td>${fmt(k["f1-score"], 2)}</td><td>${fmtInt(k.support)}</td></tr>`;
-    }).join("") + "</tbody>";
+  $("#kafle-klasy").innerHTML = `
+    <div class="kafel wyrozniony"><div class="k-etykieta">Dni złe</div>
+      <div class="k-wartosc">${fmt(wszystkie(zla).udzial_pct)}<small>%</small></div>
+      <div class="k-opis">${fmtInt(wszystkie(zla).dni)} z ${fmtInt(dniRazem)} dni</div></div>
+    <div class="kafel"><div class="k-etykieta">Dni dobre</div>
+      <div class="k-wartosc">${fmt(wszystkie(dobra).udzial_pct)}<small>%</small></div>
+      <div class="k-opis">${fmtInt(wszystkie(dobra).dni)} dni</div></div>
+    <div class="kafel"><div class="k-etykieta">Najwięcej dni złych</div>
+      <div class="k-wartosc">${esc(najgorszeMiasto.grupa)}</div>
+      <div class="k-opis">${fmt(najgorszeMiasto.udzial_pct)}% dni</div></div>
+    <div class="kafel"><div class="k-etykieta">Najgorszy miesiąc</div>
+      <div class="k-wartosc">${MIESIACE_PELNE[Number(najgorszyMiesiac.grupa) - 1]}</div>
+      <div class="k-opis">${fmt(najgorszyMiesiac.udzial_pct)}% dni złych</div></div>`;
 
-  renderWaznosc(m);
-}
-
-// Selekcja cech przed uczeniem: moduł korelacji |r| – znak pominięty, liczy się tylko siła związku
-function renderSelekcja() {
-  const s = DANE.model.selekcja_cech;
-  const skrot = { temperatura: "temp.", "prędkość wiatru": "wiatr", wilgotność: "wilg.", ciśnienie: "ciśn.", "sezon grzewczy": "sezon" };
-  const krotko = (e) => skrot[e] ?? e;
-  const naglowek = `<thead><tr><th scope="col"></th>${s.etykiety.map((e) => `<th scope="col" title="${e}">${krotko(e)}</th>`).join("")}</tr></thead>`;
-  const cialo = s.etykiety.map((a, i) =>
-    `<tr><th scope="row"><span class="pelna">${a}</span><span class="skrot">${krotko(a)}</span></th>${s.modul_korelacji[i].map((v, j) => {
-      if (i === j) return `<td class="przekatna" title="${a} sama ze sobą">1</td>`;
-      const tlo = kolorKorelacji(v);
-      const ponadProgiem = v > s.prog ? "box-shadow: inset 0 0 0 2px var(--text-primary);" : "";
-      return `<td style="background-color:${tlo};color:${kolorTekstu(tlo)};${ponadProgiem}" ` +
-        `title="${a} i ${s.etykiety[j]}: |r| = ${fmt(v, 2)}">${fmt(v, 2)}</td>`;
-    }).join("")}</tr>`).join("");
-  $("#macierz-cech").innerHTML = `${naglowek}<tbody>${cialo}</tbody>`;
-
-  const p = s.najsilniejsza_para;
-  $("#przypis-cech").textContent =
-    `Liczone tylko na danych uczących (${DANE.model.podzial.train}). Cechy z |r| > ${fmt(s.prog, 1)} byłyby zbędne. ` +
-    `Najmocniej powiązane są ${p.cechy.join(" i ")} (|r| = ${fmt(p.r, 2)}) – ` +
-    (s.usuniete.length ? `usunięto: ${s.usuniete.join(", ")}. ` : "to poniżej progu, więc zostają wszystkie cechy. ") +
-    `Niosą one częściowo tę samą informację, więc ich ważność w modelu dzieli się między nie. ` +
-    `VIF (próg ${s.prog_vif}): ` + s.etykiety.map((e, i) => `${e} ${fmt(s.vif[i], 2)}`).join(" · ") +
-    (s.vif.some((v) => v > s.prog_vif) ? " – część cech przekracza próg." : " – wszystkie poniżej progu.");
-}
-
-function renderWaznosc(m) {
-  if (m.model === "klasa większościowa") {
-    WYKRESY["wykres-waznosc"]?.destroy();
-    delete WYKRESY["wykres-waznosc"];
-    $("#p-waznosc").textContent = "";
-    $("#przypis-waznosc").textContent = "Model bazowy zawsze mówi „dobra” i nie korzysta z żadnych cech. To punkt odniesienia.";
-    return;
-  }
-  const las = m.model === "random forest";
-  const dane = las
-    ? DANE.model.waznosc_cech_rf.map((x) => ({ e: x.etykieta, v: x.permutacyjna }))
-    : DANE.model.waznosc_cech_drzewo.map((x) => ({ e: x.etykieta, v: x.gini })).filter((x) => x.v > 0);
-  const os = las ? "spadek balanced accuracy" : "ważność Gini";
-  dane.sort((a, b) => b.v - a.v);
-  $("#t-waznosc").textContent = `Ważność cech – ${m.model}`;
-  $("#p-waznosc").textContent = las
-    ? "o ile spada wynik modelu, gdy wymieszamy wartości danej cechy"
-    : "jak często drzewo dzieli dane według cechy (nieużyte pominięto)";
-  $("#przypis-waznosc").textContent = "";
-  nowyWykres("wykres-waznosc", {
+  // Udział klas w miesiącach – słupki do 100%
+  nowyWykres("wykres-klasy", {
     type: "bar",
-    data: { labels: dane.map((d) => d.e), datasets: [{ label: os, data: dane.map((d) => d.v), backgroundColor: css("--accent"), maxBarThickness: 22 }] },
+    data: {
+      labels: MIESIACE,
+      datasets: etykiety.map((k) => ({
+        label: k, data: miesiace.map((m) => wiersz("miesiac", m, k).udzial_pct),
+        backgroundColor: css(KOLOR_KLASY[k]), borderColor: css("--surface-1"), borderWidth: 1,
+      })),
+    },
     options: {
-      indexAxis: "y",
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${os}: ${fmt(c.raw, 3)}` } } },
-      scales: { x: { title: { display: true, text: os } }, y: { grid: { display: false } } },
+      plugins: { tooltip: { callbacks: { label: (c) =>
+        `${c.dataset.label}: ${fmt(c.raw)}% (${fmtInt(wiersz("miesiac", miesiace[c.dataIndex], c.dataset.label).dni)} dni)` } } },
+      scales: { x: { stacked: true, grid: { display: false } },
+                y: { stacked: true, max: 100, title: { display: true, text: "% dni" } } },
     },
   });
+
+  // Tabela: miasta, sezony i wszystkie dni
+  const grupy = [...listaMiast().map((m) => ["miasto", m, m]),
+    ["sezon", "grzewczy", "sezon grzewczy"], ["sezon", "letni", "sezon letni"], ["wszystkie", "wszystkie dni", "wszystkie dni"]];
+  $("#tabela-klasy").innerHTML =
+    `<thead><tr><th scope="col"></th>${etykiety.map((k) => `<th scope="col">${znacznikKlasy(k)}</th>`).join("")}</tr></thead><tbody>` +
+    grupy.map(([podzial, grupa, nazwa]) => `<tr class="${podzial === "wszystkie" ? "suma" : ""}"><td>${esc(nazwa)}</td>` +
+      etykiety.map((k) => { const w = wiersz(podzial, grupa, k); return `<td>${fmtInt(w.dni)} (${fmt(w.udzial_pct)}%)</td>`; }).join("") +
+      "</tr>").join("") + "</tbody>";
 }
 
-// --- Typy dni pogodowych (klasteryzacja) ---------------------------------------------------
+// --- Panel 5: typy dni pogodowych (klasteryzacja) --------------------------------------------
 function renderKlastry() {
   const K = DANE.klastry;
   const prof = K.profil;
@@ -494,9 +968,7 @@ function renderKlastry() {
   const dniZle = prof.reduce((a, p) => a + K.klaster_klasa[p.klaster]["zła"], 0);
   const silhouette = K.wybor_k.find((r) => r.k === K.k).silhouette;
 
-  $("#opis-klastry").textContent =
-    `Algorytm k-średnich podzielił ${fmtInt(K.metoda.n)} dni na typy pogody według cech: ${K.metoda.cechy.join(", ")}. ` +
-    `Pył nie brał udziału w podziale – służy tylko do opisu typów.`;
+  $("#opis-klastry").textContent = `${fmtInt(K.metoda.n)} dni podzielonych na typy według samej pogody (k-średnich).`;
 
   $("#kafle-klastry").innerHTML = `
     <div class="kafel wyrozniony"><div class="k-etykieta">Typ „${najgorszy.nazwa}”</div>
@@ -576,379 +1048,8 @@ function renderKlastry() {
   });
 }
 
-// --- Panele: jeden widoczny naraz, wybór z menu (adres #panel) ----------------------
-const PANELE = ["akwizycja", "przygotowanie", "eksploracja", "sezony", "pogoda", "ranking", "model", "typy"];
-let mapaGotowa = false;
-const panelZAdresu = () => (PANELE.includes(location.hash.slice(1)) ? location.hash.slice(1) : PANELE[0]);
-
-function pokazPanel(id) {
-  document.querySelectorAll(".panel").forEach((p) => { p.hidden = p.dataset.panel !== id; });
-  document.querySelectorAll(".menu a").forEach((a) => {
-    if (a.dataset.panel === id) a.setAttribute("aria-current", "page");
-    else a.removeAttribute("aria-current");
-  });
-  // Mapa powstaje przy pierwszym otwarciu panelu – Leaflet potrzebuje widocznego kontenera
-  if (id === "ranking" && !mapaGotowa) {
-    zbudujMape();
-    mapaGotowa = true;
-  }
-  window.scrollTo(0, 0);
-}
-
-// --- Panel A: akwizycja danych ----------------------------------------------------------
-const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const liczba = (v) => (Number.isInteger(v) ? fmtInt(v) : fmt(v));
-
-function probkaHtml(p) {
-  if (p.typ === "json") return `<pre class="surowe">${esc(p.tekst)}</pre>`;
-  // Tabela: dla CSV pierwszy wiersz to nazwy kolumn, dla XLSX – wiersze arkusza jak w pliku
-  const naglowek = p.wiersze.length === 2;
-  return `<div class="tabela-wrap"><table class="surowe">${p.wiersze.map((w, i) => `<tr>${w.map((c, j) =>
-    (naglowek && i === 0) || (!naglowek && j === 0) ? `<th>${esc(c)}</th>` : `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table></div>`;
-}
-
-function statusHtml(w) {
-  if (w.status === 200) return '<span class="status ok">200 OK</span>';
-  if (w.status === 400) return '<span class="status uwaga" title="stanowisko manualne – API nie udostępnia danych bieżących">400 manualne</span>';
-  return `<span class="status blad">${esc(w.status)}</span>`;
-}
-
-// Przepływ / lejek: kroki ze strzałkami; krok z adresem (#panel) jest odnośnikiem do kolejnego panelu
-function przeplywHtml(kroki) {
-  return kroki.map(([etap, wartosc, opis, adres], i) => {
-    const tresc = `<div class="k-wartosc">${esc(wartosc)}</div><div class="k-etykieta">${esc(etap)}</div><div class="k-opis">${esc(opis)}</div>`;
-    return `${i ? '<span class="strzalka" aria-hidden="true">→</span>' : ""}` +
-      (adres ? `<a class="krok krok-link" href="${esc(adres)}">${tresc}</a>` : `<div class="krok">${tresc}</div>`);
-  }).join("");
-}
-
-function renderAkwizycja() {
-  const A = DANE.akwizycja;
-  $("#przeplyw").innerHTML = przeplywHtml(A.przeplyw);
-
-  $("#zrodla-karty").innerHTML = A.zrodla.map((z) => `
-    <figure class="karta zrodlo">
-      <figcaption>
-        <span class="tytul">${esc(z.nazwa)}<span class="plakietka ${z.tk === "TK02" ? "lokalne" : "zdalne"}">${z.tk} · ${esc(z.dostep)}</span></span>
-        <span class="pod"><a href="${esc(z.url)}" rel="noopener">${esc(z.url)}</a></span>
-      </figcaption>
-      <dl class="meta"><dt>Format</dt><dd>${esc(z.format)}</dd><dt>Pobieramy</dt><dd>${esc(z.co)}</dd></dl>
-      <div class="liczby">${z.liczby.map(([e, v]) => `<span><strong>${liczba(v)}</strong> ${esc(e)}</span>`).join("")}</div>
-      <details>
-        <summary>Pobrane pliki (${z.pliki.length})</summary>
-        <div class="tabela-wrap"><table class="klasy"><thead><tr><th scope="col">Plik</th><th scope="col">Rozmiar</th><th scope="col">Pobrano</th></tr></thead><tbody>
-          ${z.pliki.map((f) => `<tr><td>${esc(f.nazwa)}</td><td>${f.kB >= 1024 ? `${fmt(f.kB / 1024)} MB` : `${fmtInt(f.kB)} kB`}</td><td>${esc(f.pobrano)}</td></tr>`).join("")}
-        </tbody></table></div>
-      </details>
-      <div class="probka"><div class="pod">Surowe dane: ${esc(z.probka.opis)}</div>${probkaHtml(z.probka)}</div>
-    </figure>`).join("");
-
-  renderDziennik(A.dziennik);
-}
-
-// --- Panel P: przygotowanie danych --------------------------------------------------------
-function renderPrzygotowanie() {
-  const P = DANE.przygotowanie;
-  $("#lejek").innerHTML = przeplywHtml(P.lejek);
-  $("#tabela-kroki").innerHTML =
-    `<thead><tr><th scope="col">#</th><th scope="col">Krok</th><th scope="col">Co robimy</th><th scope="col">Wynik</th></tr></thead><tbody>` +
-    P.kroki.map(([nazwa, co, wynik], i) =>
-      `<tr><td>${i + 1}</td><td><b>${esc(nazwa)}</b></td><td>${esc(co)}</td><td>${esc(wynik)}</td></tr>`).join("") + "</tbody>";
-  $("#tabela-bazy").innerHTML =
-    `<thead><tr><th scope="col">Tabela / widok</th><th scope="col">Typ</th><th scope="col">Wiersze</th></tr></thead><tbody>` +
-    P.tabele.map((t) => `<tr><td><code>${esc(t.nazwa)}</code></td><td>${t.typ === "view" ? "widok" : "tabela"}</td>` +
-      `<td>${fmtInt(t.wiersze)}</td></tr>`).join("") + "</tbody>";
-
-  // Kontrola jakości: walidacja zakresu i błędy pomiarowe (usunięte / oznaczone, ale zostawione)
-  const K = P.kontrola;
-  const nazwaWsk = (w) => (w === "PM25" ? "PM2.5" : w);
-  const prog = fmtInt(K.prog), x = fmtInt(K.krotnosc);
-  $("#reguly-kontrola").innerHTML =
-    `<b>Wartości niemożliwe</b> usuwamy: stężenie poniżej 0 albo PM2.5 większe niż PM10 (PM2.5 to część PM10). ` +
-    `<b>Błąd czujnika</b> szukamy tylko powyżej ${prog} µg/m³. Sprawdzamy dwie rzeczy: a) czy wartość jest ponad ${x} razy ` +
-    `większa niż na innych stacjach w tej samej godzinie, b) czy jest ponad ${x} razy większa niż godzinę przed i po. ` +
-    `Oba warunki naraz to błąd – wartość usuwamy. Jeden warunek to tylko oznaczenie – wartość zostaje.`;
-  const komorka = (n, klasa = "") => (n ? `<td class="${klasa}">${fmtInt(n)}</td>` : '<td class="brak">0</td>');
-  $("#tabela-kontrola").innerHTML =
-    `<thead><tr><th scope="col">Stacja</th><th scope="col">Wskaźnik</th><th scope="col">Godzin</th>` +
-    `<th scope="col">&lt; 0</th><th scope="col">PM2.5 &gt; PM10</th><th scope="col">Usunięte (a i b)</th>` +
-    `<th scope="col">Tylko a) – zostaje</th><th scope="col">Tylko b) – zostaje</th></tr></thead><tbody>` +
-    K.stacje.map((s) => `<tr><td>${esc(s.miasto)}</td><td>${nazwaWsk(s.wskaznik)}</td><td>${fmtInt(s.godzin_po_kontroli)}</td>` +
-      `${komorka(s.ujemne, "brak-dni")}${komorka(s.pm25_ponad_pm10, "brak-dni")}${komorka(s.usuniete, "brak-dni")}` +
-      `${komorka(s.odstaje_od_innych)}${komorka(s.skok_w_czasie)}</tr>`).join("") + "</tbody>";
-  const kiedy = (czas) => `${czas.slice(8, 10)}.${czas.slice(5, 7)}.${czas.slice(0, 4)} godz. ${czas.slice(11, 13)}`;
-  const powod = { "usunięta": "oba warunki → USUNIĘTA",
-    "odstaje od innych stacji": "tylko a), bo wysoko było też godzinę przed i po → ZOSTAJE",
-    "skok w czasie": "tylko b), bo inne stacje też miały wysoko → ZOSTAJE" };
-  $("#przyklady-kontrola").innerHTML = K.przyklady.map((p) =>
-    `<p class="przypis"><b>${esc(p.miasto)}, ${nazwaWsk(p.wskaznik)}, ${kiedy(p.czas)}:</b> ${fmt(p.wartosc)} µg/m³, ` +
-    `inne stacje ${fmt(p.mediana_innych)}, godzinę przed ${fmt(p.przed)}, godzinę po ${fmt(p.po)} → ${powod[p.decyzja]}</p>`).join("");
-  const suma = (k) => K.stacje.reduce((a, s) => a + s[k], 0);
-  const najw = K.stacje.reduce((a, s) => (s.odstaje_od_innych > a.odstaje_od_innych ? s : a));
-  const niemozliwe = suma("ujemne") + K.stacje.filter((s) => s.wskaznik === "PM25").reduce((a, s) => a + s.pm25_ponad_pm10, 0);
-  $("#przypis-kontrola").textContent =
-    (niemozliwe ? `Wartości niemożliwych: ${fmtInt(niemozliwe)}. ` : "Wartości niemożliwych nie było. ") +
-    `Usunięto ${fmtInt(suma("usuniete"))} błędnych wartości, a ${fmtInt(suma("odstaje_od_innych") + suma("skok_w_czasie"))} ` +
-    `oznaczono i zostawiono. Najczęściej od innych stacji odstaje ${najw.miasto} ${nazwaWsk(najw.wskaznik)} ` +
-    `(${fmtInt(najw.odstaje_od_innych)} godzin). Każde miasto ma jedną stację, więc porównujemy z innymi miastami – ` +
-    `a te mogą się po prostu różnić. Dlatego sam warunek a) nic nie usuwa.`;
-
-  // Filtracja: ile dni zostało i w którym mieście brakowało której zmiennej
-  const F = P.filtracja;
-  const ZMIENNE_F = [["pm10", "PM10"], ["pm25", "PM2.5"], ["temp_sr", "temperatura"], ["opad", "opad"],
-                     ["wiatr_sr", "wiatr"], ["wilgotnosc", "wilgotność"], ["cisnienie", "ciśnienie"]];
-  $("#p-filtracja").textContent = `dzień zostaje tylko, gdy wszystkie ${listaMiast().length} miasta mają PM10, PM2.5 i pełną pogodę`;
-  const brak = (m, z) => F.braki.find((b) => b.miasto === m && b.zmienna === z)?.dni ?? 0;
-  $("#tabela-filtracja").innerHTML =
-    `<thead><tr><th scope="col">Dni z brakiem</th>${ZMIENNE_F.map(([, n]) => `<th scope="col">${n}</th>`).join("")}</tr></thead><tbody>` +
-    listaMiast().map((m) => `<tr><td>${esc(m)}</td>${ZMIENNE_F.map(([z]) => {
-      const n = brak(m, z);
-      return n ? `<td class="brak-dni">${fmtInt(n)}</td>` : '<td class="brak">–</td>';
-    }).join("")}</tr>`).join("") + "</tbody>";
-  $("#przypis-filtracja").textContent =
-    `Zostało ${fmtInt(F.dni_kompletne)} z ${fmtInt(F.dni_kalendarzowe)} dni (${fmt(100 * F.dni_kompletne / F.dni_kalendarzowe, 0)}%), ` +
-    `usunięto ${fmtInt(F.dni_kalendarzowe - F.dni_kompletne)}. Jeden dzień może mieć kilka braków naraz, więc liczby ` +
-    `w tabeli się nie sumują. Krosno i Jasło mają pogodę z tej samej stacji.`;
-}
-
-// Przykład jednej doby: 24 wartości godzinowe przed i po kontroli, średnia dobowa przed i po
-function renderDoba() {
-  const P = DANE.przygotowanie;
-  const d = P.przyklad_doby;
-  if (!d.length) { $("#karta-doba").hidden = true; return; }
-  const sr = (k) => { const v = d.map((x) => x[k]).filter((x) => x != null); return [v.reduce((a, b) => a + b, 0) / v.length, v.length]; };
-  const [srPrzed, nPrzed] = sr("przed"), [srPo, nPo] = sr("po");
-  const usuniete = d.filter((x) => x.przed != null && x.po == null);
-  const wsk = d[0].wskaznik === "PM25" ? "PM2.5" : d[0].wskaznik;
-  const data = `${d[0].data.slice(8, 10)}.${d[0].data.slice(5, 7)}.${d[0].data.slice(0, 4)}`;
-  $("#t-doba").textContent = `Przykład: ${d[0].miasto}, ${wsk}, ${data} – przed i po kontroli`;
-  $("#p-doba").textContent = "słupek = jedna godzina [µg/m³] · czerwony: usunięty błąd · linie: średnia z doby";
-  const stala = (v) => d.map(() => v);
-  nowyWykres("wykres-doba", {
-    type: "bar",
-    data: {
-      labels: d.map((x) => String(x.godzina)),
-      datasets: [
-        { type: "bar", label: "pomiar po kontroli", data: d.map((x) => x.po), backgroundColor: css("--accent"), grouped: false, order: 2 },
-        { type: "bar", label: "usunięty (błąd)", data: d.map((x) => (x.przed != null && x.po == null ? x.przed : null)),
-          backgroundColor: css("--class-zla"), grouped: false, order: 2 },
-        { type: "line", label: `średnia przed kontrolą: ${fmt(srPrzed)}`, data: stala(srPrzed), borderColor: css("--text-muted"),
-          borderDash: [6, 4], borderWidth: 2, pointRadius: 0, order: 1 },
-        { type: "line", label: `średnia po kontroli: ${fmt(srPo)}`, data: stala(srPo), borderColor: css("--text-primary"),
-          borderWidth: 2, pointRadius: 0, order: 1 },
-      ],
-    },
-    options: {
-      plugins: { tooltip: { callbacks: { label: (c) => `${c.dataset.label.split(":")[0]}: ${fmt(c.raw)} µg/m³` } } },
-      scales: { x: { title: { display: true, text: "godzina (koniec przedziału, CET)" }, grid: { display: false } },
-                y: { beginAtZero: true, title: { display: true, text: `${wsk} [µg/m³]` } } },
-    },
-  });
-  const godz = usuniete.map((x) => `${x.godzina}:00 (${fmt(x.przed)} µg/m³)`).join(", ");
-  $("#przypis-doba").textContent =
-    `Usunięta godzina: ${godz}. Średnia z doby spada z ${fmt(srPrzed)} do ${fmt(srPo)} µg/m³. ` +
-    `Zostało ${nPo} z 24 godzin – ` +
-    (nPo >= P.min_godzin ? `wystarczy (minimum ${P.min_godzin}), więc doba zostaje.`
-                         : `za mało (minimum ${P.min_godzin}), więc doba nie ma średniej.`);
-}
-
-// --- Panel E: eksploracja danych (EDA) ----------------------------------------------------
-const ZMIENNE_EDA = [["PM10", "PM10"], ["PM2.5", "PM2.5"], ["temperatura", "temp."], ["prędkość wiatru", "wiatr"],
-  ["opad", "opad"], ["wilgotność", "wilg."], ["ciśnienie", "ciśn."]];
-const statEda = (z) => DANE.eksploracja.statystyki.find((s) => s.zmienna === z);
-
-function renderEksploracja() {
-  const S = DANE.eksploracja.statystyki;
-  const pm10 = statEda("PM10"), opad = statEda("opad"), cisn = statEda("ciśnienie"),
-    temp = statEda("temperatura"), wiatr = statEda("prędkość wiatru");
-  $("#kafle-eda").innerHTML = `
-    <div class="kafel wyrozniony"><div class="k-etykieta">PM10: średnia vs mediana [µg/m³]</div>
-      <div class="k-wartosc">${fmt(pm10.srednia)} vs ${fmt(pm10.mediana)}</div>
-      <div class="k-opis">średnia jest wyższa, bo podbijają ją rzadkie dni ze smogiem</div></div>
-    <div class="kafel"><div class="k-etykieta">Skośność PM10 po logarytmie</div>
-      <div class="k-wartosc">${fmt(pm10.skosnosc_po_log, 2)}</div>
-      <div class="k-opis">przed: ${fmt(pm10.skosnosc, 2)} – po logarytmie rozkład jest prawie symetryczny</div></div>
-    <div class="kafel"><div class="k-etykieta">Opad: dni bez opadu</div>
-      <div class="k-wartosc">${fmt(opad.udzial_zer_pct, 0)}%</div>
-      <div class="k-opis">mediana ${fmt(opad.mediana)} mm, średnia ${fmt(opad.srednia)} mm</div></div>
-    <div class="kafel"><div class="k-etykieta">Ciśnienie: odchylenie standardowe</div>
-      <div class="k-wartosc">${fmt(cisn.odch_std)} hPa</div>
-      <div class="k-opis">na jednej stacji tylko ${fmt(cisn.odch_std_w_grupie)} – resztę daje różna wysokość stacji</div></div>`;
-
-  const dominanta = (s) => { const d = Number.isInteger(s.dominanta_do - s.dominanta_od) ? 0 : 1; return `${fmt(s.dominanta_od, d)}–${fmt(s.dominanta_do, d)}`; };
-  $("#p-opisowe").textContent = "typowa wartość, rozrzut i kształt rozkładu każdej zmiennej";
-  $("#tabela-opisowe").innerHTML =
-    `<thead><tr><th scope="col">Zmienna</th><th scope="col">n</th><th scope="col">Średnia</th><th scope="col">Mediana</th>` +
-    `<th scope="col" title="przedział modalny histogramu">Dominanta</th><th scope="col">Odch. std.</th>` +
-    `<th scope="col" title="w jednostkach do kwadratu">Wariancja</th><th scope="col" title="odchylenie / średnia">Wsp. zmienności</th>` +
-    `<th scope="col">Skośność</th><th scope="col" title="kurtoza nadwyżkowa – rozkład normalny ma 0">Kurtoza</th>` +
-    `<th scope="col">Kształt rozkładu</th></tr></thead><tbody>` +
-    S.map((s) => `<tr><td><b>${esc(s.zmienna)}</b> <span class="jedn">[${esc(s.jednostka)}]</span></td><td>${fmtInt(s.n)}</td>` +
-      `<td>${fmt(s.srednia)}</td><td>${fmt(s.mediana)}</td><td>${dominanta(s)}</td><td>${fmt(s.odch_std)}</td>` +
-      `<td>${fmt(s.wariancja)}</td>` +
-      (s.wsp_zmiennosci_pct == null ? '<td class="brak" title="°C nie ma prawdziwego zera – stosunek odchylenia do średniej nic nie znaczy">–</td>'
-                                    : `<td>${fmt(s.wsp_zmiennosci_pct, 0)}%</td>`) +
-      `<td>${fmt(s.skosnosc, 2)}</td><td>${fmt(s.kurtoza, 2)}</td>` +
-      `<td>${esc(s.ksztalt)}${s.skosnosc_po_log == null ? "" : ` <span class="jedn">(po log: ${fmt(s.skosnosc_po_log, 2)})</span>`}</td></tr>`).join("") +
-    "</tbody>";
-  $("#przypis-opisowe").textContent =
-    `Pył: ${fmtInt(pm10.n)} dni (4 miasta). Pogoda: ${fmtInt(temp.n)} dni (3 stacje – Krosno i Jasło mają wspólną). ` +
-    `Dominanta to najczęstszy przedział. Rozkład normalny ma skośność 0 i kurtozę 0. Skośność powyżej 1 oznacza ` +
-    `wyraźnie niesymetryczny rozkład. Wariancja jest w jednostkach do kwadratu, dlatego łatwiej czytać odchylenie.`;
-
-  const li = (t) => `<li>${t}</li>`;
-  $("#wnioski-eda").innerHTML = [
-    `<b>Pył jest mocno przesunięty w prawo</b> (skośność PM10 ${fmt(pm10.skosnosc, 2)}): większość dni jest czysta, ` +
-      `a kilka bardzo brudnych. Dlatego mediana (${fmt(pm10.mediana)}) lepiej opisuje typowy dzień niż średnia ` +
-      `(${fmt(pm10.srednia)}), a korelacje liczymy metodą Spearmana, która nie wymaga rozkładu normalnego.`,
-    `<b>Regresja liniowa zakłada rozkład normalny</b> – dla pyłu trzeba by go najpierw zlogarytmować. ` +
-      `Model w panelu 4 (drzewo i las losowy) nie ma takich wymagań.`,
-    `<b>Opad:</b> ${fmt(opad.udzial_zer_pct, 0)}% dni bez deszczu, więc w klasteryzacji używamy jego logarytmu.`,
-    `<b>Zmienne mają różne skale</b> (wariancja PM10 ${fmt(pm10.wariancja)}, wiatru ${fmt(wiatr.wariancja)}), ` +
-      `więc przed klasteryzacją sprowadzamy je do tej samej skali. Inaczej PM10 przytłoczyłoby resztę.`,
-    `<b>Ciśnienie</b> różni się między stacjami przez ich wysokość, więc w klasteryzacji liczy się ` +
-      `tylko różnica od średniej danej stacji.`,
-    `<b>Temperatura</b> ma dwa szczyty: zimowy i letni. Dlatego wyniki liczymy też osobno dla sezonów, ` +
-      `a model dostaje informację o sezonie.`,
-  ].map(li).join("");
-
-  // Reguła 68–95–99,7: porównanie z rozkładem normalnym (różnica > 5 p.p. lub > 1% poza 3σ – wyróżniona)
-  const NORMALNY = [68.269, 95.44997, 99.730];  // P(|Z| ≤ k) w % dla k = 1, 2, 3
-  const pct = (v, wzor, tol) => `<td class="${Math.abs(v - wzor) > tol ? "odbiega" : ""}">${fmt(v)}%</td>`;
-  $("#tabela-3sigma").innerHTML =
-    `<thead><tr><th scope="col">Zmienna</th><th scope="col">Przekształcenie</th><th scope="col">w ±1σ</th>` +
-    `<th scope="col">w ±2σ</th><th scope="col">w ±3σ</th><th scope="col">poza ±3σ</th></tr></thead><tbody>` +
-    `<tr class="wzorzec"><td><b>rozkład normalny</b></td><td>–</td>${NORMALNY.map((v) => `<td>${fmt(v)}%</td>`).join("")}<td>0,3%</td></tr>` +
-    DANE.eksploracja.regula_3sigma.map((r) => {
-      const poza = 100 * r.poza_3_sigma / r.n;
-      return `<tr><td>${esc(r.zmienna)}</td><td>${esc(r.przeksztalcenie)}</td>${pct(r.w_1_sigma_pct, NORMALNY[0], 5)}` +
-        `${pct(r.w_2_sigma_pct, NORMALNY[1], 2)}${pct(r.w_3_sigma_pct, NORMALNY[2], 1)}` +
-        `<td class="${poza > 1 ? "odbiega" : ""}">${fmtInt(r.poza_3_sigma)} (${fmt(poza)}%)</td></tr>`;
-    }).join("") + "</tbody>";
-  const T = DANE.eksploracja.pm10_ponad_3sigma;
-  const log10 = DANE.eksploracja.regula_3sigma.find((r) => r.zmienna === "PM10" && r.przeksztalcenie !== "bez zmian");
-  $("#przypis-3sigma").textContent =
-    `PM10 powyżej średnia + 3σ (${fmt(T.granica)} µg/m³) ma ${fmtInt(T.dni)} dni ` +
-    (T.w_tym_zle === T.dni ? "i wszystkie to dni ze smogiem" : `– z tego ${fmtInt(T.w_tym_zle)} to dni ze smogiem`) +
-    ` (${fmtInt(T.w_tym_zle)} ze ${fmtInt(T.zle_wszystkie)}). Gdybyśmy usunęli je jako „odstające”, wycięlibyśmy połowę smogu. ` +
-    `Dlatego reguły 3σ nie używamy do czyszczenia danych. Po logarytmie PM10 pasuje do niej prawie idealnie ` +
-    `(${fmt(log10.w_1_sigma_pct)} / ${fmt(log10.w_2_sigma_pct)} / ${fmt(log10.w_3_sigma_pct)}%).`;
-
-  $("#wybor-zmienna").innerHTML = ZMIENNE_EDA.map(([z, skrot]) =>
-    `<button type="button" role="radio" data-wartosc="${z}" aria-checked="${z === STAN.zmiennaEda}" title="${z}">${skrot}</button>`).join("");
-}
-
-// Testy istotności dla pytań 1–3 (wiersze bez wskaźnika – korelacje i GUS – widoczne zawsze)
-const fmtP = (p) => (p == null ? "–" : p < 0.001 ? "&lt; 0,001" : fmt(p, 3));
-function renderTesty() {
-  const E = DANE.eksploracja;
-  const wiersze = E.testy.filter((t) => t.wskaznik == null || t.wskaznik === STAN.wskaznik)
-    .sort((a, b) => a.pytanie - b.pytanie);
-  $("#p-testy").textContent = `czy wyniki pytań 1–3 mogą być przypadkiem · wskaźnik: ${STAN.wskaznik}`;
-  $("#tabela-testy").innerHTML =
-    `<thead><tr><th scope="col">Pyt.</th><th scope="col">Test</th><th scope="col">Hipoteza zerowa (H0)</th><th scope="col">Dane</th>` +
-    `<th scope="col">Statystyka</th><th scope="col">p</th><th scope="col">Wielkość efektu</th><th scope="col">Wniosek</th></tr></thead><tbody>` +
-    wiersze.map((t) => {
-      const efekt = t.efekt_nazwa.startsWith("pary") ? fmtInt(t.efekt) : t.efekt_nazwa.startsWith("r ") ? fmtR(t.efekt)
-        : fmt(t.efekt, t.efekt_nazwa.startsWith("różnica") ? 1 : 2);
-      const wniosek = t.wniosek === "odrzucamy H0" ? "<b>odrzucamy H0</b>" : t.wniosek === "zob. uwagi" ? "" : esc(t.wniosek);
-      return `<tr><td>${t.pytanie}</td><td>${esc(t.test)}</td><td>${esc(t.h0)}</td><td>${esc(t.dane)}</td>` +
-        `<td>${esc(t.statystyka)}</td><td class="${t.p != null && t.p >= 0.05 ? "odbiega" : ""}">${fmtP(t.p)}</td>` +
-        `<td>${esc(t.efekt_nazwa)}: ${efekt}</td>` +
-        `<td>${wniosek}${t.uwagi ? `<div class="jedn">${esc(t.uwagi)}</div>` : ""}</td></tr>`;
-    }).join("") + "</tbody>";
-  const ak = E.autokorelacja.filter((a) => a.wskaznik === STAN.wskaznik).map((a) => a.r_lag1);
-  $("#przypis-testy").textContent =
-    `p < 0,05 oznacza, że wynik raczej nie jest przypadkiem. Uwaga: smog trwa kilka dni, więc kolejne dni są do siebie ` +
-    `podobne (autokorelacja ${fmt(Math.min(...ak), 2)}–${fmt(Math.max(...ak), 2)}) i p z danych dziennych wychodzi za małe. ` +
-    `Dlatego testy powtarzamy na średnich miesięcznych. Przy tysiącach dni nawet słaby efekt jest „istotny”, ` +
-    `więc podajemy też jego wielkość: P(dzień zimowy > letni) = 0,5 to brak różnicy, a W Kendalla = 1 to ta sama ` +
-    `kolejność miast każdego dnia. Dla GUS są tylko 4 miasta, więc nawet r = −1 może wyjść przypadkiem.`;
-}
-
-// Wtyczka: pionowe linie średniej i mediany na histogramie (oś kategorii = kolejne przedziały)
-const linieRozkladu = {
-  id: "linieRozkladu",
-  afterDatasetsDraw(chart, _args, opt) {
-    const { ctx, chartArea: a, scales: { x } } = chart;
-    const krok = x.getPixelForValue(1) - x.getPixelForValue(0);
-    ctx.save();
-    for (const l of opt.linie ?? []) {
-      const px = x.getPixelForValue(0) + ((l.wartosc - opt.od) / opt.szer - 0.5) * krok;
-      if (px < a.left || px > a.right) continue;
-      ctx.strokeStyle = l.kolor; ctx.lineWidth = 2.5; ctx.setLineDash(l.przerywana ? [6, 4] : []);
-      ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
-    }
-    ctx.restore();
-  },
-};
-
-function renderHistogram() {
-  const s = statEda(STAN.zmiennaEda);
-  const h = DANE.eksploracja.histogramy[STAN.zmiennaEda];
-  // Długi ogon: oś do 99,5 percentyla, żeby było widać kształt (pominięte obserwacje opisane pod wykresem)
-  let koniec = h.length;
-  if (s.skosnosc >= 1) {
-    const suma = h.reduce((a, b) => a + b[2], 0);
-    let narast = 0;
-    koniec = h.findIndex((b) => (narast += b[2]) / suma >= 0.995) + 1;
-  }
-  const widoczne = h.slice(0, koniec);
-  const pominiete = h.slice(koniec).reduce((a, b) => a + b[2], 0);
-  const szer = h[0][1] - h[0][0];
-  const d = Number.isInteger(szer) ? 0 : 1;
-  $("#t-histogram").textContent = `Rozkład: ${s.zmienna} [${s.jednostka}]`;
-  nowyWykres("wykres-histogram", {
-    type: "bar",
-    data: {
-      labels: widoczne.map(([od]) => fmt(od, d)),
-      datasets: [{ label: "obserwacje", data: widoczne.map((b) => b[2]), barPercentage: 1, categoryPercentage: 1,
-        backgroundColor: widoczne.map(([od]) => (od === s.dominanta_od ? css("--accent") : zPrzezroczystoscia(css("--accent"), 0.45))) }],
-    },
-    options: {
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { title: (c) => { const [od, doo] = widoczne[c[0].dataIndex]; return `${fmt(od, d)}–${fmt(doo, d)} ${s.jednostka}`; },
-                                label: (c) => `${fmtInt(c.raw)} obserwacji` } },
-        linieRozkladu: { od: h[0][0], szer, linie: [
-          { wartosc: s.srednia, kolor: css("--season-grzewczy") },
-          { wartosc: s.mediana, kolor: css("--text-primary"), przerywana: true }] },
-      },
-      scales: { x: { title: { display: true, text: `${s.zmienna} [${s.jednostka}] – początek przedziału` }, grid: { display: false } },
-                y: { beginAtZero: true, title: { display: true, text: "liczba obserwacji" } } },
-    },
-    plugins: [linieRozkladu],
-  });
-  const wGrupie = s.odch_std_w_grupie / s.odch_std < 0.8
-    ? ` Na jednej stacji odchylenie to tylko ${fmt(s.odch_std_w_grupie)} (łącznie ${fmt(s.odch_std)}) – część rozrzutu to różnice między stacjami.` : "";
-  $("#przypis-histogram").innerHTML =
-    `<span class="legenda-linia srednia"></span> średnia ${fmt(s.srednia)} · <span class="legenda-linia mediana"></span> mediana ` +
-    `${fmt(s.mediana)} · dominanta ${fmt(s.dominanta_od, d)}–${fmt(s.dominanta_do, d)} ${esc(s.jednostka)} · ${esc(s.ksztalt)}.` +
-    (pominiete ? ` Na wykresie pominięto ${fmtInt(pominiete)} najwyższych wartości (do ${fmt(s.max)}), żeby było widać kształt.` : "") +
-    wGrupie;
-}
-
-function renderDziennik(D) {
-  if (!D) {
-    $("#p-dziennik").textContent = "Brak dziennika – uruchom python -m src.main.";
-    return;
-  }
-  const ile = (warunek) => D.zapytania.filter(warunek).length;
-  const zDysku = D.pamiec_podreczna.filter((p) => p.z_dysku).map((p) => `${p.plik} (pobrany ${p.data_pliku})`);
-  $("#p-dziennik").textContent = `Uruchomienie ${D.uruchomienie} · ${D.zapytania.length} zapytań: ${ile((w) => w.status === 200)} × 200, ` +
-    `${ile((w) => w.status === 400)} × 400 (stanowiska manualne – bez danych bieżących)` +
-    (zDysku.length ? ` · z dysku zamiast z sieci: ${zDysku.join(", ")}` : "");
-  $("#tabela-dziennik").innerHTML =
-    `<thead><tr><th scope="col">Czas</th><th scope="col">API</th><th scope="col">Zapytanie</th><th scope="col">Status</th><th scope="col">Czas odp.</th><th scope="col">Rozmiar</th></tr></thead><tbody>` +
-    D.zapytania.map((w) => {
-      const u = new URL(w.adres);
-      const sciezka = (u.pathname + u.search).replace(/^\/pjp-api\/v1\/rest\/|^\/api\/v1\//, "");
-      return `<tr><td>${esc(w.czas.slice(11))}</td><td>${esc(w.api)}</td><td title="${esc(w.adres)}">${esc(sciezka)}</td>` +
-        `<td>${statusHtml(w)}</td><td>${fmtInt(w.ms)} ms</td><td>${w.bajty == null ? "–" : `${fmt(w.bajty / 1024)} kB`}</td></tr>`;
-    }).join("") + "</tbody>";
-}
-
-// Progi klas (panel modelu), data wygenerowania i zakres lat (pasek boczny)
+// --- Pasek boczny i dane wspólne -------------------------------------------------------------
+// Progi klas (panel 4), data wygenerowania i zakres lat (pasek boczny)
 function renderMeta() {
   const m = DANE.meta;
   const [a, b] = m.progi_pm10.granice;
@@ -973,7 +1074,7 @@ function renderWszystko() {
   ustawChartJs();
   renderKafle(); renderSezonowy(); renderMiesieczny();
   renderKorelacje(); renderRozrzut();
-  renderRanking(); renderModel(); renderSelekcja(); renderKlastry(); renderDoba(); renderHistogram();
+  renderRanking(); renderTeraz(); renderKlasy(); renderKlastry(); renderDoba(); renderHistogram();
 }
 
 // --- Start ----------------------------------------------------------------------------
@@ -989,14 +1090,12 @@ function renderWszystko() {
   renderPrzygotowanie();
   renderEksploracja();
   renderTesty();
-  renderWyborModelu();
   podepnijPrzelacznik("#wybor-wskaznik", "wskaznik", () => {
-    renderKafle(); renderSezonowy(); renderMiesieczny(); renderKorelacje(); renderKlastry(); renderTesty();
+    renderKafle(); renderSezonowy(); renderMiesieczny(); renderKorelacje(); renderTeraz(); renderKlastry(); renderTesty();
   });
   podepnijPrzelacznik("#wybor-zakres", "zakres", renderKorelacje);
   podepnijPrzelacznik("#wybor-os", "os", renderRozrzut);
   podepnijPrzelacznik("#wybor-zmienna", "zmiennaEda", renderHistogram);
-  podepnijPrzelacznik("#wybor-model", "model", renderModel);
   // Zmiana motywu systemu → wykresy w nowych kolorach
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderWszystko);
   renderWszystko();

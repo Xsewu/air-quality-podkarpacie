@@ -17,3 +17,7 @@ __pycache__/
 .vscode/
 .idea/
 Thumbs.db
+
+# Plik .exe (python -m src.build_exe)
+build/
+dist/

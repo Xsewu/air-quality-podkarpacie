@@ -1,17 +1,15 @@
-"""TK04 – klasteryzacja dni na typy pogodowe i ich profil smogowy.
+"""TK04 – klasteryzacja: podział dni na typy pogody i sprawdzenie, w którym typie jest najwięcej pyłu.
 
-Obiektem klastrowania jest unikalny dzień pogodowy (data × stacja IMGW), a nie
-wiersz miasto-dzień – Krosno i Jasło dzielą stację meteo, więc inaczej ich dni
-liczyłyby się podwójnie. Do KMeans trafia wyłącznie pogoda; PM10/PM2.5 służą
-tylko do opisu klastrów, dzięki czemu wynik pokazuje, które typy pogody
-sprzyjają smogowi (a nie grupuje dni po samym stężeniu).
+Kroki (funkcja run na dole pliku):
+1. Dane: jeden wiersz = dzień na jednej stacji IMGW (każde miasto ma swoją).
+   Ciśnienie jako różnica od średniej stacji.
+2. Cechy: tylko pogoda, opad zlogarytmowany, wszystko sprowadzone do jednej skali.
+3. Wybór liczby typów k (2–8) według wskaźnika silhouette.
+4. KMeans i opis typów: średnia pogoda, pył (nie brał udziału w podziale), udział dni złych.
 """
 import json
 import sqlite3
 
-import matplotlib
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -21,7 +19,7 @@ from sklearn.metrics import adjusted_rand_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
 
 from src import config
-from src.analyze import DIVERGING, GRID, SURFACE, TEXT, TEXT_MUTED, _save
+from src.plots import DIVERGING, GRID, SURFACE, TEXT, TEXT_MUTED, save
 
 FEATURES = ["temp_sr", "wiatr_sr", "opad", "wilgotnosc", "cisnienie"]
 FEATURE_NAMES = {"temp_sr": "temperatura", "wiatr_sr": "prędkość wiatru", "opad": "opad",
@@ -39,6 +37,7 @@ DESCRIPTORS = {("temp_sr", 1): "ciepłe", ("temp_sr", -1): "zimne",
 
 
 def load() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """1. Pogoda dni pełnych (dzień × stacja IMGW) i pył dni-miasto do opisu typów."""
     with sqlite3.connect(config.DB_PATH) as con:
         # Tylko dni kompletne (te same co w zbiorze analitycznym dzien_miasto)
         weather = pd.read_sql("SELECT w.data, w.imgw_kod, " + ", ".join(f"w.{f}" for f in FEATURES)
@@ -46,7 +45,7 @@ def load() -> tuple[pd.DataFrame, pd.DataFrame]:
         days = pd.read_sql("SELECT miasto, data, pm10, pm25, sezon, klasa FROM dzien_miasto", con)
     con.close()
     weather = weather.dropna(subset=FEATURES).sort_values(["data", "imgw_kod"]).reset_index(drop=True)
-    # Ciśnienie na poziomie stacji zależy od wysokości n.p.m. (Lesko ~967 hPa, Rzeszów ~991 hPa),
+    # Ciśnienie na poziomie stacji zależy od wysokości n.p.m. (Katowice leżą ok. 270 m wyżej niż Gdańsk-Świbno),
     # więc porównujemy anomalię względem średniej danej stacji – inaczej klastry odzwierciedlałyby stacje.
     weather["cisnienie"] = weather["cisnienie"] - weather.groupby("imgw_kod")["cisnienie"].transform("mean")
     days["imgw_kod"] = days["miasto"].map({c: v["imgw"] for c, v in config.CITIES.items()})
@@ -54,13 +53,14 @@ def load() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def feature_matrix(weather: pd.DataFrame) -> np.ndarray:
+    """2. Cechy do KMeans: logarytm opadu i jedna skala dla wszystkich (StandardScaler)."""
     X = weather[FEATURES].copy()
     X["opad"] = np.log1p(X["opad"])  # opad silnie prawoskośny (większość dni = 0 mm)
     return StandardScaler().fit_transform(X)
 
 
 def choose_k(X: np.ndarray) -> tuple[pd.DataFrame, int]:
-    """Silhouette i inercja dla k = 2..8; wybór k o najwyższym silhouette."""
+    """3. Silhouette i inercja dla k = 2..8; wybieramy k z najwyższym silhouette."""
     rows = []
     for k in K_RANGE:
         km = KMeans(n_clusters=k, n_init=20, random_state=RANDOM_STATE).fit(X)
@@ -78,6 +78,7 @@ def cluster_name(z: pd.Series) -> str:
 
 
 def profile(weather: pd.DataFrame, days: pd.DataFrame, X: np.ndarray, k: int) -> dict:
+    """4. KMeans dla wybranego k i opis każdego typu (pogoda, pył, klasy dni, miesiące, stacje)."""
     km = KMeans(n_clusters=k, n_init=20, random_state=RANDOM_STATE).fit(X)
     weather = weather.assign(klaster_km=km.labels_)
     merged = days.merge(weather[["data", "imgw_kod", "klaster_km"]], on=["data", "imgw_kod"], how="inner")
@@ -94,7 +95,7 @@ def profile(weather: pd.DataFrame, days: pd.DataFrame, X: np.ndarray, k: int) ->
     weather["miesiac"] = pd.to_datetime(weather["data"]).dt.month
     heating = weather["miesiac"].isin(config.HEATING_MONTHS)
 
-    limit = config.PM10_CLASS_BINS[1]
+    limit = config.PM10_DAILY_LIMIT
     rows = []
     for c in sorted(weather["klaster"].unique()):
         w = weather[weather["klaster"] == c]
@@ -144,7 +145,7 @@ def plot_k(scores: pd.DataFrame, k: int) -> None:
         ax.set_xticks(scores["k"])
         ax.set_xlabel("liczba klastrów k")
         ax.set_title(title)
-    _save(fig, "klastry_wybor_k.png")
+    save(fig, "klastry_wybor_k.png")
 
 
 def plot_profile(res: dict) -> None:
@@ -164,7 +165,7 @@ def plot_profile(res: dict) -> None:
     for s in ax.spines.values():
         s.set_visible(False)
     ax.set_title("Profil klastrów: średnie cech (kolor = z-score względem wszystkich dni)")
-    _save(fig, "klastry_profil.png")
+    save(fig, "klastry_profil.png")
 
 
 def plot_pm(res: dict) -> None:
@@ -188,7 +189,7 @@ def plot_pm(res: dict) -> None:
     ax.set_title("PM10 w typach dni pogodowych (pudełko: kwartyle, wąsy: 1,5 IQR)")
     ax.legend(frameon=False, loc="upper right")
     ax.grid(axis="x", visible=False)
-    _save(fig, "klastry_pm10.png")
+    save(fig, "klastry_pm10.png")
 
 
 def plot_pca(res: dict, X: np.ndarray) -> None:
@@ -216,7 +217,7 @@ def plot_pca(res: dict, X: np.ndarray) -> None:
     ax.set_ylabel(f"PC2 ({ev[1]:.0f}% wariancji)")
     ax.set_title(f"Dni pogodowe w rzucie PCA ({len(config.IMGW_STATIONS)} stacje IMGW × 2023–2025)")
     ax.legend(frameon=False, markerscale=3, loc="best", fontsize=9)
-    _save(fig, "klastry_pca.png")
+    save(fig, "klastry_pca.png")
 
 
 def run() -> dict:
