@@ -1,85 +1,31 @@
-"""TK04 – testy istotności: czy wyniki pytań 1–3 mogą być przypadkiem.
-
-- Pytanie 1 (sezony):   test U Manna–Whitneya na dniach i test permutacyjny na średnich miesięcznych.
-- Pytanie 2 (pogoda):   istotność każdej korelacji z macierzy korelacji.
-- Pytanie 3 (miasta):   test Friedmana (te same dni we wszystkich miastach).
-
-Biblioteki scipy nie ma na liście zależności, więc rozkłady liczymy wzorami: normalny przez
-math.erfc, chi-kwadrat wzorem dla całkowitej liczby stopni swobody, a test permutacyjny przez
-losowanie (numpy). Kolejne dni są do siebie podobne (smog trwa kilka dni), więc testy z danych
-dziennych powtarzamy na średnich miesięcznych.
-
-Wyniki: tabele wyniki_testy i wyniki_autokorelacja.
-"""
 import math
 import sqlite3
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from src import config
 
-ALPHA = 0.05  # poziom istotności
+ALPHA = 0.05
 
 
-# --- Rozkłady i testy ----------------------------------------------------------------------------
-
-def p_normal(z: float) -> float:
-    """Dwustronna p-wartość dla statystyki z o rozkładzie normalnym N(0, 1)."""
-    return math.erfc(abs(z) / math.sqrt(2))
-
-
-def chi2_sf(x: float, df: int) -> float:
-    """P(χ²(df) > x) dla całkowitego df – wzory zamknięte (parzyste df: szereg Poissona; nieparzyste: erfc + szereg)."""
-    h = x / 2
-    if df % 2 == 0:
-        return math.exp(-h) * sum(h ** i / math.factorial(i) for i in range(df // 2))
-    return math.erfc(math.sqrt(h)) + math.exp(-h) * sum(h ** (i - 0.5) / math.gamma(i + 0.5)
-                                                       for i in range(1, (df - 1) // 2 + 1))
-
-
-def spearman_p(r: float, n: int) -> float:
-    """p-wartość dla H0: brak korelacji; t = r·√((n−2)/(1−r²)), przy n w setkach t ≈ N(0, 1)."""
-    return 0.0 if abs(r) >= 1 else p_normal(r * math.sqrt((n - 2) / (1 - r * r)))
-
+# --- Testy ---------------------------------------------------------------------------------------
 
 def mann_whitney(a: pd.Series, b: pd.Series) -> dict:
-    """Test U Manna–Whitneya (przybliżenie normalne, poprawka na równe wartości).
-    Efekt: P(losowa wartość z a > z b) = U / (n_a·n_b); 0,5 = brak różnicy."""
-    x = pd.concat([a, b], ignore_index=True)
-    n1, n2, n = len(a), len(b), len(a) + len(b)
-    u = x.rank().iloc[:n1].sum() - n1 * (n1 + 1) / 2
-    ties = x.value_counts().values
-    sd = math.sqrt(n1 * n2 / 12 * ((n + 1) - (ties ** 3 - ties).sum() / (n * (n - 1))))
-    z = (u - n1 * n2 / 2) / sd
-    return {"z": z, "p": p_normal(z), "efekt": u / (n1 * n2)}
-
-
-def permutation_test(x: np.ndarray, group: np.ndarray, n_perm: int = 20000) -> dict:
-    """Test permutacyjny różnicy średnich dwóch grup – bez założeń o rozkładzie."""
-    rng = np.random.default_rng(42)
-
-    def mean_difference(g: np.ndarray) -> float:
-        return x[g].mean() - x[~g].mean()
-
-    observed = mean_difference(group)
-    shuffled = np.array([mean_difference(rng.permutation(group)) for _ in range(n_perm)])
-    return {"roznica": observed, "p": ((np.abs(shuffled) >= abs(observed)).sum() + 1) / (n_perm + 1)}
+    """Test U Manna–Whitneya (przybliżenie normalne). Efekt: P(losowa wartość z a > z b) = U / (n_a·n_b)."""
+    res = stats.mannwhitneyu(a, b, alternative="two-sided", method="asymptotic", use_continuity=False)
+    z = math.copysign(stats.norm.isf(res.pvalue / 2), res.statistic - len(a) * len(b) / 2)
+    return {"z": z, "p": res.pvalue, "efekt": res.statistic / (len(a) * len(b))}
 
 
 def friedman(table: pd.DataFrame) -> dict:
-    """Test Friedmana: wiersze = bloki (dni lub miesiące), kolumny = grupy (miasta); poprawka na równe wartości.
+    """Test Friedmana: wiersze = bloki (dni lub miesiące), kolumny = grupy (miasta).
     Efekt: W Kendalla (0 – kolejność miast losowa, 1 – w każdym bloku taka sama)."""
     n, k = table.shape
-    ranks = table.rank(axis=1)
-    q = 12 / (n * k * (k + 1)) * (ranks.sum() ** 2).sum() - 3 * n * (k + 1)
-    ties = 0
-    for _, row in table.iterrows():
-        counts = row.value_counts().values
-        ties += (counts ** 3 - counts).sum()
-    q /= 1 - ties / (n * k * (k * k - 1))
-    return {"q": q, "df": k - 1, "p": chi2_sf(q, k - 1), "efekt": q / (n * (k - 1)),
-            "srednie_rangi": ranks.mean().sort_values(ascending=False)}
+    res = stats.friedmanchisquare(*(table[c] for c in table.columns))
+    return {"q": res.statistic, "df": k - 1, "p": res.pvalue, "efekt": res.statistic / (n * (k - 1)),
+            "srednie_rangi": table.rank(axis=1).mean().sort_values(ascending=False)}
 
 
 # --- Testy dla pytań badawczych ------------------------------------------------------------------
@@ -90,20 +36,13 @@ def pl(v: float, digits: int) -> str:
 
 
 def season_tests(days: pd.DataFrame, col: str, name: str) -> list[dict]:
-    """Pytanie 1: czy zimą jest więcej pyłu niż latem (dni i średnie miesięczne)."""
+    """Pytanie 1: czy zimą jest więcej pyłu niż latem."""
     winter, summer = days.loc[days["sezon"] == "grzewczy", col], days.loc[days["sezon"] == "letni", col]
     mw = mann_whitney(winter, summer)
-    monthly = days.groupby(["miesiac_roku", "sezon"])[col].mean().reset_index()
-    is_winter = (monthly["sezon"] == "grzewczy").values
-    perm = permutation_test(monthly[col].values, is_winter)
     return [
         {"pytanie": 1, "wskaznik": name, "test": "U Manna–Whitneya (dni)", "h0": "zimą i latem jest tyle samo pyłu",
          "dane": f"{len(winter)} + {len(summer)} dni-miasto", "statystyka": f"z = {pl(mw['z'], 2)}", "p": mw["p"],
          "efekt_nazwa": "P(dzień zimowy > letni)", "efekt": mw["efekt"]},
-        {"pytanie": 1, "wskaznik": name, "test": "permutacyjny (średnie miesięczne)", "h0": "średnia zimą = średnia latem",
-         "dane": f"{len(monthly)} miesięcy ({is_winter.sum()} grzewczych)",
-         "statystyka": f"różnica {pl(perm['roznica'], 2)} µg/m³", "p": perm["p"],
-         "efekt_nazwa": "różnica średnich [µg/m³]", "efekt": perm["roznica"]},
     ]
 
 

@@ -1,9 +1,3 @@
-"""Wszystkie wykresy PNG projektu (zapis do data/processed/).
-
-Na górze wspólny wygląd: kolory, styl matplotlib i funkcja save(). Niżej wykresy w kolejności
-etapów: eksploracja (eda.py), pytania 1–4 (analyze.py) i typy dni pogodowych (cluster.py).
-Moduły liczą wyniki, a do narysowania wywołują funkcje stąd.
-"""
 import matplotlib
 
 matplotlib.use("Agg")  # rysowanie do plików, bez okna
@@ -16,13 +10,13 @@ from sklearn.decomposition import PCA
 from src import config
 
 POLLUTANTS, SEASONS = config.POLLUTANTS, config.SEASONS
-VARIABLES = {**config.POLLUTANTS, **config.WEATHER}  # zmienne macierzy korelacji
+VARIABLES = {**config.POLLUTANTS, **config.WEATHER}
 LIMIT = config.PM10_DAILY_LIMIT
 
 # Kolory przypisane na stałe (paleta sprawdzona pod kątem daltonizmu)
 CITY_COLORS = dict(zip(config.CITIES, ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]))
 SEASON_COLORS = {"letni": "#2a78d6", "grzewczy": "#eb6834"}
-CLASS_COLORS = dict(zip(config.PM10_CLASS_LABELS, ["#0ca30c", "#fab219", "#d03b3b"]))  # dobra, umiarkowana, zła
+CLASS_COLORS = dict(zip(config.PM10_CLASS_LABELS, ["#0ca30c", "#fab219", "#d03b3b"]))
 TEXT, TEXT_MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 # Skala rozbieżna do korelacji: niebieski (−1) – szary (0) – czerwony (+1)
 DIVERGING = LinearSegmentedColormap.from_list("rozbiezna", ["#1c5cab", "#86b6ef", "#f0efec", "#ef8f8e", "#b52f2f"])
@@ -127,14 +121,13 @@ def plot_correlations(matrix: pd.DataFrame) -> None:
     diagonal = np.eye(len(names), dtype=bool)
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5), sharey=True)
     fig.subplots_adjust(top=0.87, bottom=0.07, wspace=0.06, left=0.09, right=0.93)
-    for ax, scope in zip(axes, ["cały rok", "grzewczy", "letni"]):  # kolejność jak w przełączniku na stronie
+    for ax, scope in zip(axes, ["cały rok", "grzewczy", "letni"]):
         sub = matrix[matrix["zakres"] == scope]
         m = sub.pivot(index="zmienna_a", columns="zmienna_b", values="r").reindex(index=names, columns=names)
         image = ax.imshow(np.ma.masked_where(diagonal, m.values), cmap=cmap, vmin=-1, vmax=1)
         for (i, j), v in np.ndenumerate(m.values):
             ax.text(j, i, "1" if i == j else f"{v:+.2f}", ha="center", va="center", fontsize=8.5,
                     color=TEXT_MUTED if i == j else "white" if abs(v) > 0.55 else TEXT)
-        # Linie oddzielają blok pyłu (PM10, PM2.5) od zmiennych pogodowych
         ax.axhline(len(POLLUTANTS) - 0.5, color=SURFACE, lw=3)
         ax.axvline(len(POLLUTANTS) - 0.5, color=SURFACE, lw=3)
         ax.set_xticks(range(len(names)), short)

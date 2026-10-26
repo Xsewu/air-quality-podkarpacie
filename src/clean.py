@@ -1,22 +1,3 @@
-"""TK04 – przygotowanie danych: z surowych pomiarów do bazy SQLite z dniami gotowymi do analizy.
-
-Kolejność kroków (funkcja run na dole pliku):
-1. GIOŚ: pomiary godzinowe PM10 i PM2.5 w jednej tabeli.
-2. Kontrola jakości (moduł quality): wartości niemożliwe i błędy czujników.
-3. GIOŚ: średnie dobowe – tylko przy co najmniej 18 z 24 godzin.
-4. IMGW: pogoda dobowa – średnie z terminów godzinowych i opad z sum 6-godzinnych.
-5. Stacje i najnowsze pomiary z API.
-6. Zapis do SQLite.
-7. Filtracja: zostają tylko dni, w których wszystkie miasta mają komplet pomiarów.
-
-Czas:
-- GIOŚ (archiwum): czas zimowy CET (UTC+1). Znacznik to koniec godziny – wartość z 01:00
-  dotyczy 00:00–01:00, więc doba D to godziny 01:00 D … 00:00 D+1, czyli data = czas − 1 h.
-- IMGW: czas UTC, przeliczany na CET (+1 h), żeby doba pogody była tą samą dobą co pył.
-  Opad liczymy z sum 6-godzinnych za dobę 00–24 UTC. Dobowy opad IMGW (SMDB) obejmuje
-  06 UTC D → 06 UTC D+1, czyli częściowo następny dzień, więc go nie używamy.
-- API GIOŚ (najnowsze pomiary): czas lokalny, zapisywany bez zmian.
-"""
 import sqlite3
 
 import numpy as np
@@ -43,7 +24,6 @@ def gios_daily(hourly: pd.DataFrame) -> pd.DataFrame:
     stats = hourly.groupby(["data", "kod_stacji", "wskaznik"])["wartosc"].agg(["mean", "count"])
     stats.loc[stats["count"] < config.MIN_HOURS_PER_DAY, "mean"] = np.nan
 
-    # Kolumny: pm10, pm25 (średnie) i n_godz_pm10, n_godz_pm25 (liczba godzin)
     wide = stats.unstack("wskaznik")
     wide.columns = [f"{'pm' if stat == 'mean' else 'n_godz_pm'}{pollutant.replace('PM', '').lower()}"
                     for stat, pollutant in wide.columns]
@@ -98,7 +78,6 @@ def imgw_daily(hourly: pd.DataFrame) -> pd.DataFrame:
     daily = h.groupby(["data", "imgw_kod"]).agg(
         temp_sr=("TEMP", "mean"), wiatr_sr=("FWR", "mean"), wilgotnosc=("WLGW", "mean"),
         cisnienie=("PPPS", "mean"), n_godz=("FWR", "count")).reset_index()
-    # Doby z niepełnymi terminami: średnie tylko przy co najmniej 18 pomiarach
     daily.loc[daily["n_godz"] < config.MIN_HOURS_PER_DAY, ["temp_sr", "wiatr_sr", "wilgotnosc", "cisnienie"]] = np.nan
 
     out = daily.merge(precipitation(h), on=["data", "imgw_kod"], how="left")
@@ -109,14 +88,6 @@ def imgw_daily(hourly: pd.DataFrame) -> pd.DataFrame:
 
 
 # --- 5. Stacje i najnowsze pomiary z API ---------------------------------------------------------
-
-def meteo_stations(hourly: pd.DataFrame) -> pd.DataFrame:
-    """Stacje IMGW: kod 3-cyfrowy, pełny kod NSP i nazwa."""
-    df = hourly[["NSP"]].drop_duplicates().copy()
-    df["imgw_kod"] = imgw_code(df["NSP"])
-    df["nazwa"] = df["imgw_kod"].map(config.IMGW_STATIONS)
-    return df.rename(columns={"NSP": "nsp"})[["imgw_kod", "nsp", "nazwa"]]
-
 
 def stations_table(meta: pd.DataFrame, api_stations: pd.DataFrame) -> pd.DataFrame:
     """Stacja GIOŚ → miasto → stacja IMGW, plus nazwa, typ, współrzędne i identyfikator w API."""
@@ -149,20 +120,14 @@ DROP TABLE IF EXISTS kontrola_pomiarow;
 DROP TABLE IF EXISTS kontrola_flagi;
 DROP TABLE IF EXISTS przyklad_doby;
 DROP TABLE IF EXISTS stacje;
-DROP TABLE IF EXISTS stacje_meteo;
 DROP TABLE IF EXISTS pm_dobowe;
 DROP TABLE IF EXISTS pogoda_dobowa;
 DROP TABLE IF EXISTS pm_biezace;
 
-CREATE TABLE stacje_meteo (
-    imgw_kod INTEGER PRIMARY KEY,
-    nsp TEXT,
-    nazwa TEXT
-);
 CREATE TABLE stacje (
     kod_stacji TEXT PRIMARY KEY,
     miasto TEXT NOT NULL,
-    imgw_kod INTEGER REFERENCES stacje_meteo(imgw_kod),
+    imgw_kod INTEGER,
     nazwa TEXT, typ_stacji TEXT, typ_obszaru TEXT,
     lat REAL, lon REAL,
     api_id INTEGER                     -- identyfikator stacji w API GIOŚ
@@ -176,7 +141,7 @@ CREATE TABLE pm_dobowe (
 );
 CREATE TABLE pogoda_dobowa (
     data TEXT NOT NULL,
-    imgw_kod INTEGER NOT NULL REFERENCES stacje_meteo(imgw_kod),
+    imgw_kod INTEGER NOT NULL,
     temp_sr REAL,                                 -- [°C]
     opad REAL,                                    -- suma za dobę 00–24 UTC [mm]
     wiatr_sr REAL,                                -- [m/s]
@@ -249,8 +214,7 @@ def run(local: dict[str, pd.DataFrame], api: dict[str, pd.DataFrame]) -> None:
     checked = quality.check(raw)                                              # 2
     flags = checked["flags"]
     tables = {
-        "stacje_meteo": meteo_stations(local["imgw_hourly"]),                # 5
-        "stacje": stations_table(local["gios_stations"], api["api_stations"]),
+        "stacje": stations_table(local["gios_stations"], api["api_stations"]),  # 5
         "kontrola_pomiarow": checked["summary"],
         "kontrola_flagi": flags.assign(czas=flags["czas"].dt.strftime("%Y-%m-%d %H:%M")),
         "przyklad_doby": checked["example_day"],

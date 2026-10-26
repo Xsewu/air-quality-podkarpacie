@@ -1,1 +1,519 @@
-{"lejek":[["pomiary godzinowe PM","207 969","z plików (pustych miejsc: 2 463)"],["wartości niemożliwe","−30","ujemne albo PM2.5 > PM10"],["błędy czujników","−30","usunięte (2 236 oznaczonych zostaje)"],["średnie dobowe","4 327","dni z PM10 na stacjach (PM2.5: 4 327)"],["z pogodą","4 384","4 miasta × 1096 dni"],["po filtracji","4 144","4 miasta × 1036 pełnych dni"]],"lejek_dni":{"siatka":[4384,"4 miasta × 1096 dni"],"ubytki":[["brak PM10 lub PM2.5",57,"mniej niż 18 z 24 h albo brak danych"],["brak pogody",9,"PM jest, ale brakuje zmiennej pogodowej"],["inne miasto niepełne",174,"dzień odpada we wszystkich 4 miastach"]],"wynik":[4144,"4 miasta × 1036 pełnych dni"]},"kroki":[["Czas","UTC (IMGW) → CET (GIOŚ)","wspólna doba"],["Wartości niemożliwe","< 0 albo PM2.5 > PM10 → brak","30 zamienionych na brak"],["Błędy czujników","> 30 µg/m³ i 3× więcej niż inne stacje i sąsiednie godziny","30 usuniętych"],["Braki w pogodzie","kod 8 IMGW → brak","4 383 z 4 384 dni"],["Średnie dobowe","min. 18 z 24 godzin","50 dób odrzuconych"],["Zapis","SQLite db/air.sqlite","10 tabel, 2 widoki"],["Filtracja w bazie","widok dzien_miasto: wszystkie 4 miasta pełne","1036 z 1096 dni"]],"min_godzin":18,"tabele":[{"nazwa":"dni_kompletne","typ":"table","wiersze":1036},{"nazwa":"filtracja_braki","typ":"table","wiersze":16},{"nazwa":"kontrola_flagi","typ":"table","wiersze":2266},{"nazwa":"kontrola_pomiarow","typ":"table","wiersze":8},{"nazwa":"pm_biezace","typ":"table","wiersze":532},{"nazwa":"pm_dobowe","typ":"table","wiersze":4384},{"nazwa":"pogoda_dobowa","typ":"table","wiersze":4383},{"nazwa":"przyklad_doby","typ":"table","wiersze":24},{"nazwa":"stacje","typ":"table","wiersze":4},{"nazwa":"stacje_meteo","typ":"table","wiersze":4},{"nazwa":"dzien_miasto","typ":"view","wiersze":4144},{"nazwa":"dzien_miasto_pelny","typ":"view","wiersze":4384}],"przyklad_doby":[{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":1,"przed":21.4,"po":21.4,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":2,"przed":20.6,"po":20.6,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":3,"przed":18.6,"po":18.6,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":4,"przed":19.0,"po":19.0,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":5,"przed":18.4,"po":18.4,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":6,"przed":19.5,"po":19.5,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":7,"przed":27.0,"po":27.0,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":8,"przed":201.1,"po":null,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":9,"przed":29.3,"po":29.3,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":10,"przed":28.6,"po":28.6,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":11,"przed":20.9,"po":20.9,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":12,"przed":14.4,"po":14.4,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":13,"przed":31.6,"po":31.6,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":14,"przed":13.7,"po":13.7,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":15,"przed":10.8,"po":10.8,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":16,"przed":12.4,"po":12.4,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":17,"przed":18.2,"po":18.2,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":18,"przed":18.8,"po":18.8,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":19,"przed":36.9,"po":36.9,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":20,"przed":53.6,"po":53.6,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":21,"przed":75.9,"po":75.9,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":22,"przed":65.4,"po":65.4,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":23,"przed":65.7,"po":65.7,"miasto":"Warszawa"},{"data":"2023-10-17","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","godzina":24,"przed":63.0,"po":63.0,"miasto":"Warszawa"}],"kontrola":{"prog":30,"krotnosc":3,"stacje":[{"miasto":"Gdańsk","kod_stacji":"PmGdaLeczkow","wskaznik":"PM10","ujemne":0,"pm25_ponad_pm10":0,"godzin_po_kontroli":26114,"usuniete":7,"odstaje_od_innych":232,"skok_w_czasie":1},{"miasto":"Gdańsk","kod_stacji":"PmGdaLeczkow","wskaznik":"PM25","ujemne":0,"pm25_ponad_pm10":0,"godzin_po_kontroli":26121,"usuniete":0,"odstaje_od_innych":162,"skok_w_czasie":0},{"miasto":"Katowice","kod_stacji":"SlKatoKossut","wskaznik":"PM10","ujemne":0,"pm25_ponad_pm10":0,"godzin_po_kontroli":25650,"usuniete":3,"odstaje_od_innych":610,"skok_w_czasie":0},{"miasto":"Katowice","kod_stacji":"SlKatoKossut","wskaznik":"PM25","ujemne":0,"pm25_ponad_pm10":0,"godzin_po_kontroli":25654,"usuniete":0,"odstaje_od_innych":357,"skok_w_czasie":0},{"miasto":"Warszawa","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","ujemne":0,"pm25_ponad_pm10":0,"godzin_po_kontroli":26099,"usuniete":12,"odstaje_od_innych":238,"skok_w_czasie":0},{"miasto":"Warszawa","kod_stacji":"MzWarBajkowa","wskaznik":"PM25","ujemne":0,"pm25_ponad_pm10":0,"godzin_po_kontroli":26110,"usuniete":1,"odstaje_od_innych":191,"skok_w_czasie":0},{"miasto":"Wrocław","kod_stacji":"DsWrocWybCon","wskaznik":"PM10","ujemne":0,"pm25_ponad_pm10":15,"godzin_po_kontroli":26078,"usuniete":6,"odstaje_od_innych":331,"skok_w_czasie":7},{"miasto":"Wrocław","kod_stacji":"DsWrocWybCon","wskaznik":"PM25","ujemne":0,"pm25_ponad_pm10":15,"godzin_po_kontroli":26083,"usuniete":1,"odstaje_od_innych":106,"skok_w_czasie":1}],"przyklady":[{"miasto":"Warszawa","czas":"2023-10-17 08:00","kod_stacji":"MzWarBajkowa","wskaznik":"PM10","wartosc":201.1,"mediana_innych":32.6457,"przed":27.0,"po":29.3,"przestrzenne":1,"czasowe":1,"decyzja":"usunięta"},{"miasto":"Wrocław","czas":"2025-03-05 20:00","kod_stacji":"DsWrocWybCon","wskaznik":"PM10","wartosc":228.4,"mediana_innych":21.3,"przed":171.4,"po":152.6,"przestrzenne":1,"czasowe":0,"decyzja":"odstaje od innych stacji"}]},"filtracja":{"dni_kalendarzowe":1096,"dni_kompletne":1036,"dni_miasto_po":4144,"braki":[{"miasto":"Gdańsk","zmienna":"cisnienie","dni":3},{"miasto":"Gdańsk","zmienna":"opad","dni":4},{"miasto":"Gdańsk","zmienna":"pm10","dni":8},{"miasto":"Gdańsk","zmienna":"pm25","dni":8},{"miasto":"Gdańsk","zmienna":"temp_sr","dni":3},{"miasto":"Gdańsk","zmienna":"wiatr_sr","dni":3},{"miasto":"Gdańsk","zmienna":"wilgotnosc","dni":3},{"miasto":"Katowice","zmienna":"opad","dni":2},{"miasto":"Katowice","zmienna":"pm10","dni":31},{"miasto":"Katowice","zmienna":"pm25","dni":31},{"miasto":"Warszawa","zmienna":"opad","dni":1},{"miasto":"Warszawa","zmienna":"pm10","dni":8},{"miasto":"Warszawa","zmienna":"pm25","dni":8},{"miasto":"Wrocław","zmienna":"opad","dni":1},{"miasto":"Wrocław","zmienna":"pm10","dni":10},{"miasto":"Wrocław","zmienna":"pm25","dni":10}]}}
+{
+  "lejek": [
+    [
+      "pomiary godzinowe PM",
+      "207 969",
+      "z plików (pustych miejsc: 2 463)"
+    ],
+    [
+      "wartości niemożliwe",
+      "−30",
+      "ujemne albo PM2.5 > PM10"
+    ],
+    [
+      "błędy czujników",
+      "−30",
+      "usunięte (2 236 oznaczonych zostaje)"
+    ],
+    [
+      "średnie dobowe",
+      "4 327",
+      "dni z PM10 na stacjach (PM2.5: 4 327)"
+    ],
+    [
+      "z pogodą",
+      "4 384",
+      "4 miasta × 1096 dni"
+    ],
+    [
+      "po filtracji",
+      "4 144",
+      "4 miasta × 1036 pełnych dni"
+    ]
+  ],
+  "lejek_dni": {
+    "siatka": [
+      4384,
+      "4 miasta × 1096 dni"
+    ],
+    "ubytki": [
+      [
+        "brak PM10 lub PM2.5",
+        57,
+        "mniej niż 18 z 24 h albo brak danych"
+      ],
+      [
+        "brak pogody",
+        9,
+        "PM jest, ale brakuje zmiennej pogodowej"
+      ],
+      [
+        "inne miasto niepełne",
+        174,
+        "dzień odpada we wszystkich 4 miastach"
+      ]
+    ],
+    "wynik": [
+      4144,
+      "4 miasta × 1036 pełnych dni"
+    ]
+  },
+  "kroki": [
+    [
+      "Czas",
+      "UTC (IMGW) → CET (GIOŚ)"
+    ],
+    [
+      "Wartości niemożliwe",
+      "< 0 albo PM2.5 > PM10 → brak"
+    ],
+    [
+      "Błędy czujników",
+      "> 30 µg/m³ i 3× więcej niż inne stacje i sąsiednie godziny"
+    ],
+    [
+      "Braki w pogodzie",
+      "kod 8 IMGW → brak"
+    ],
+    [
+      "Średnie dobowe",
+      "min. 18 z 24 godzin"
+    ],
+    [
+      "Zapis",
+      "SQLite db/air.sqlite"
+    ],
+    [
+      "Filtracja w bazie",
+      "widok dzien_miasto: wszystkie 4 miasta pełne"
+    ]
+  ],
+  "min_godzin": 18,
+  "przyklad_doby": [
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 1,
+      "przed": 21.4,
+      "po": 21.4,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 2,
+      "przed": 20.6,
+      "po": 20.6,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 3,
+      "przed": 18.6,
+      "po": 18.6,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 4,
+      "przed": 19.0,
+      "po": 19.0,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 5,
+      "przed": 18.4,
+      "po": 18.4,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 6,
+      "przed": 19.5,
+      "po": 19.5,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 7,
+      "przed": 27.0,
+      "po": 27.0,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 8,
+      "przed": 201.1,
+      "po": null,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 9,
+      "przed": 29.3,
+      "po": 29.3,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 10,
+      "przed": 28.6,
+      "po": 28.6,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 11,
+      "przed": 20.9,
+      "po": 20.9,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 12,
+      "przed": 14.4,
+      "po": 14.4,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 13,
+      "przed": 31.6,
+      "po": 31.6,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 14,
+      "przed": 13.7,
+      "po": 13.7,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 15,
+      "przed": 10.8,
+      "po": 10.8,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 16,
+      "przed": 12.4,
+      "po": 12.4,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 17,
+      "przed": 18.2,
+      "po": 18.2,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 18,
+      "przed": 18.8,
+      "po": 18.8,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 19,
+      "przed": 36.9,
+      "po": 36.9,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 20,
+      "przed": 53.6,
+      "po": 53.6,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 21,
+      "przed": 75.9,
+      "po": 75.9,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 22,
+      "przed": 65.4,
+      "po": 65.4,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 23,
+      "przed": 65.7,
+      "po": 65.7,
+      "miasto": "Warszawa"
+    },
+    {
+      "data": "2023-10-17",
+      "kod_stacji": "MzWarBajkowa",
+      "wskaznik": "PM10",
+      "godzina": 24,
+      "przed": 63.0,
+      "po": 63.0,
+      "miasto": "Warszawa"
+    }
+  ],
+  "kontrola": {
+    "prog": 30,
+    "krotnosc": 3,
+    "stacje": [
+      {
+        "miasto": "Gdańsk",
+        "kod_stacji": "PmGdaLeczkow",
+        "wskaznik": "PM10",
+        "ujemne": 0,
+        "pm25_ponad_pm10": 0,
+        "godzin_po_kontroli": 26114,
+        "usuniete": 7,
+        "odstaje_od_innych": 232,
+        "skok_w_czasie": 1
+      },
+      {
+        "miasto": "Gdańsk",
+        "kod_stacji": "PmGdaLeczkow",
+        "wskaznik": "PM25",
+        "ujemne": 0,
+        "pm25_ponad_pm10": 0,
+        "godzin_po_kontroli": 26121,
+        "usuniete": 0,
+        "odstaje_od_innych": 162,
+        "skok_w_czasie": 0
+      },
+      {
+        "miasto": "Katowice",
+        "kod_stacji": "SlKatoKossut",
+        "wskaznik": "PM10",
+        "ujemne": 0,
+        "pm25_ponad_pm10": 0,
+        "godzin_po_kontroli": 25650,
+        "usuniete": 3,
+        "odstaje_od_innych": 610,
+        "skok_w_czasie": 0
+      },
+      {
+        "miasto": "Katowice",
+        "kod_stacji": "SlKatoKossut",
+        "wskaznik": "PM25",
+        "ujemne": 0,
+        "pm25_ponad_pm10": 0,
+        "godzin_po_kontroli": 25654,
+        "usuniete": 0,
+        "odstaje_od_innych": 357,
+        "skok_w_czasie": 0
+      },
+      {
+        "miasto": "Warszawa",
+        "kod_stacji": "MzWarBajkowa",
+        "wskaznik": "PM10",
+        "ujemne": 0,
+        "pm25_ponad_pm10": 0,
+        "godzin_po_kontroli": 26099,
+        "usuniete": 12,
+        "odstaje_od_innych": 238,
+        "skok_w_czasie": 0
+      },
+      {
+        "miasto": "Warszawa",
+        "kod_stacji": "MzWarBajkowa",
+        "wskaznik": "PM25",
+        "ujemne": 0,
+        "pm25_ponad_pm10": 0,
+        "godzin_po_kontroli": 26110,
+        "usuniete": 1,
+        "odstaje_od_innych": 191,
+        "skok_w_czasie": 0
+      },
+      {
+        "miasto": "Wrocław",
+        "kod_stacji": "DsWrocWybCon",
+        "wskaznik": "PM10",
+        "ujemne": 0,
+        "pm25_ponad_pm10": 15,
+        "godzin_po_kontroli": 26078,
+        "usuniete": 6,
+        "odstaje_od_innych": 331,
+        "skok_w_czasie": 7
+      },
+      {
+        "miasto": "Wrocław",
+        "kod_stacji": "DsWrocWybCon",
+        "wskaznik": "PM25",
+        "ujemne": 0,
+        "pm25_ponad_pm10": 15,
+        "godzin_po_kontroli": 26083,
+        "usuniete": 1,
+        "odstaje_od_innych": 106,
+        "skok_w_czasie": 1
+      }
+    ],
+    "przyklady": [
+      {
+        "miasto": "Warszawa",
+        "czas": "2023-10-17 08:00",
+        "kod_stacji": "MzWarBajkowa",
+        "wskaznik": "PM10",
+        "wartosc": 201.1,
+        "mediana_innych": 32.6457,
+        "przed": 27.0,
+        "po": 29.3,
+        "przestrzenne": 1,
+        "czasowe": 1,
+        "decyzja": "usunięta"
+      },
+      {
+        "miasto": "Wrocław",
+        "czas": "2025-03-05 20:00",
+        "kod_stacji": "DsWrocWybCon",
+        "wskaznik": "PM10",
+        "wartosc": 228.4,
+        "mediana_innych": 21.3,
+        "przed": 171.4,
+        "po": 152.6,
+        "przestrzenne": 1,
+        "czasowe": 0,
+        "decyzja": "odstaje od innych stacji"
+      }
+    ]
+  },
+  "filtracja": {
+    "dni_kalendarzowe": 1096,
+    "dni_kompletne": 1036,
+    "dni_miasto_po": 4144,
+    "braki": [
+      {
+        "miasto": "Gdańsk",
+        "zmienna": "cisnienie",
+        "dni": 3
+      },
+      {
+        "miasto": "Gdańsk",
+        "zmienna": "opad",
+        "dni": 4
+      },
+      {
+        "miasto": "Gdańsk",
+        "zmienna": "pm10",
+        "dni": 8
+      },
+      {
+        "miasto": "Gdańsk",
+        "zmienna": "pm25",
+        "dni": 8
+      },
+      {
+        "miasto": "Gdańsk",
+        "zmienna": "temp_sr",
+        "dni": 3
+      },
+      {
+        "miasto": "Gdańsk",
+        "zmienna": "wiatr_sr",
+        "dni": 3
+      },
+      {
+        "miasto": "Gdańsk",
+        "zmienna": "wilgotnosc",
+        "dni": 3
+      },
+      {
+        "miasto": "Katowice",
+        "zmienna": "opad",
+        "dni": 2
+      },
+      {
+        "miasto": "Katowice",
+        "zmienna": "pm10",
+        "dni": 31
+      },
+      {
+        "miasto": "Katowice",
+        "zmienna": "pm25",
+        "dni": 31
+      },
+      {
+        "miasto": "Warszawa",
+        "zmienna": "opad",
+        "dni": 1
+      },
+      {
+        "miasto": "Warszawa",
+        "zmienna": "pm10",
+        "dni": 8
+      },
+      {
+        "miasto": "Warszawa",
+        "zmienna": "pm25",
+        "dni": 8
+      },
+      {
+        "miasto": "Wrocław",
+        "zmienna": "opad",
+        "dni": 1
+      },
+      {
+        "miasto": "Wrocław",
+        "zmienna": "pm10",
+        "dni": 10
+      },
+      {
+        "miasto": "Wrocław",
+        "zmienna": "pm25",
+        "dni": 10
+      }
+    ]
+  }
+}

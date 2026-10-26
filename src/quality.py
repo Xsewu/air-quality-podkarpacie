@@ -1,24 +1,10 @@
-"""TK04 – kontrola jakości pomiarów godzinowych PM10 i PM2.5 (przed liczeniem średnich dobowych).
-
-Dwa kroki:
-1. Wartości niemożliwe – stężenie < 0 albo PM2.5 > PM10 w tej samej godzinie na tej samej
-   stacji (PM2.5 jest częścią PM10). Takie wartości zamieniamy na brak.
-2. Błędy czujników – wysoka wartość może być smogiem albo awarią. Powyżej ERROR_THRESHOLD
-   sprawdzamy dwa warunki:
-   a) przestrzenny: wartość > ERROR_FACTOR × mediana pozostałych stacji w tej samej godzinie,
-   b) czasowy:      wartość > ERROR_FACTOR × średnia z godziny przed i po.
-   Oba naraz = izolowany skok na jednej stacji, czyli błąd – usuwamy.
-   Tylko jeden = oznaczenie, wartość zostaje (lokalne źródło albo narastający smog).
-
-Funkcja check() wykonuje oba kroki i zwraca oczyszczone dane oraz tabele z wynikami.
-"""
 import numpy as np
 import pandas as pd
 
 from src import config
 
 ERROR_THRESHOLD = 30  # µg/m3 – niżej to zwykły szum przy czystym powietrzu (6 przy medianie 2 to też „3 razy więcej”)
-ERROR_FACTOR = 3      # „ponad 3 razy więcej niż odniesienie”
+ERROR_FACTOR = 3
 
 
 def validate_range(hourly: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:

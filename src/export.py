@@ -1,10 +1,3 @@
-"""TK05 – eksport wyników do web/data/*.json dla strony.
-
-Funkcje są ułożone w kolejności paneli strony: A (akwizycja), P (przygotowanie), E (eksploracja),
-1 (sezony), 2 (pogoda), 3 (ranking i mapa), 4 (klasy dni), 5 (typy dni) oraz meta (wspólne dane).
-Dane pochodzą z bazy SQLite i z raportu JSON klasteryzacji. Klucze w plikach JSON są
-po polsku, bo czyta je strona (web/app.js).
-"""
 import csv
 import io
 import json
@@ -30,7 +23,7 @@ def to_json_safe(obj):
         return {str(k): to_json_safe(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [to_json_safe(v) for v in obj]
-    if hasattr(obj, "item"):  # skalary numpy
+    if hasattr(obj, "item"):
         obj = obj.item()
     if isinstance(obj, float) and not math.isfinite(obj):
         return None
@@ -38,9 +31,9 @@ def to_json_safe(obj):
 
 
 def write(name: str, data) -> None:
-    """Zapisuje web/data/<name>; allow_nan=False gwarantuje poprawny JSON."""
+    """Zapisuje web/data/<name> (sformatowany, z wcięciami); allow_nan=False gwarantuje poprawny JSON."""
     config.WEB_DATA.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(to_json_safe(data), ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+    text = json.dumps(to_json_safe(data), ensure_ascii=False, allow_nan=False, indent=2)
     (config.WEB_DATA / name).write_text(text, encoding="utf-8")
     print(f"  web/data/{name}: {len(text) / 1024:.1f} kB")
 
@@ -89,20 +82,24 @@ def export_acquisition(con) -> None:
     gios, imgw, api = config.GIOS_RAW, config.IMGW_RAW, config.API_RAW
     last_year = config.YEARS[-1]
 
-    # GIOŚ – pierwsze wiersze arkusza XLSX (4 kolumny), tak jak w pliku
+    # GIOŚ – nagłówek i pierwsze 12 godzin arkusza XLSX, tak jak w pliku: kolumna czasu i kolumny naszych stacji
     sheet = openpyxl.load_workbook(gios / "extracted" / f"{last_year}_PM10_1g.xlsx", read_only=True).worksheets[0]
+    top = [row for _, row in zip(range(config.GIOS_HEADER_ROWS + 12), sheet.iter_rows(values_only=True))]
+    columns = [0] + [i for i, code in enumerate(top[1]) if code in config.GIOS_STATIONS]  # wiersz 2 = kod stacji
     gios_sample = [[c.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] if isinstance(c, datetime) else ("" if c is None else str(c))
-                    for c in row[:4]] for _, row in zip(range(9), sheet.iter_rows(values_only=True))]
-    # IMGW – wybrane kolumny z pliku nagłówka i pierwszy wiersz danych (cp1250)
+                    for c in (row[i] for i in columns)] for row in top]
     header = (imgw / "s_t_naglowek.csv").read_text(encoding=config.IMGW_ENCODING).strip().split(",")
     station = next(iter(config.IMGW_STATIONS))
     with zipfile.ZipFile(imgw / "terminowe" / f"{last_year}_{station}_s.zip") as zf:
         csv_file = io.TextIOWrapper(zf.open(f"s_t_{station}_{last_year}.csv"), encoding=config.IMGW_ENCODING)
-        # 13 terminów (00–12 UTC), żeby było widać opad WO6G – podawany tylko co 6 godzin
-        first_rows = [row for _, row in zip(range(13), csv.reader(csv_file))]
+        rows = list(csv.reader(csv_file))
+    # Opad WO6G jest tylko co 6 godzin, a gdy nie pada – puste pole ze statusem 9. Pokazujemy więc 13 godzin
+    # wokół pierwszego terminu z deszczem, żeby było widać i wartość opadu, i statusy 8 / 9.
+    rain = header.index("WO6G")
+    first_rain = next(i for i, row in enumerate(rows) if row[rain].strip() and float(row[rain]) > 0)
+    first_rows = rows[max(0, first_rain - 6):max(0, first_rain - 6) + 13]
     shown = [i for i, name in enumerate(header)
              if name in ("NSP", "POST", "ROK", "MC", "DZ", "GG", "KRWR", "FWR", "TEMP", "WLGW", "PPPS", "WO6G", "WWO6G")]
-    # API GIOŚ – fragmenty zapisanych odpowiedzi JSON
     api_stations = json.loads((api / "gios_stations.json").read_text(encoding="utf-8"))
     snapshots = sorted(api.glob("gios_current_*.json"))
     last_snapshot = json.loads(snapshots[-1].read_text(encoding="utf-8"))
@@ -129,7 +126,7 @@ def export_acquisition(con) -> None:
                     ["MB", round(sum(f["kB"] for f in gios_files) / 1024)],
                     ["ważnych pomiarów godzinowych", pm_hours]],
          "pliki": gios_files,
-         "probka": {"typ": "tabela", "opis": f"{last_year}_PM10_1g.xlsx – 6 wierszy nagłówka, potem godziny; 4 z ok. 185 kolumn",
+         "probka": {"typ": "tabela", "opis": f"{last_year}_PM10_1g.xlsx – 6 wierszy nagłówka, potem godziny; kolumny naszych {len(columns) - 1} stacji z ok. {len(top[1]) - 1}",
                     "wiersze": gios_sample}},
         {"id": "imgw", "nazwa": "IMGW-PIB – dane synoptyczne", "tk": "TK02", "dostep": "plik lokalny",
          "url": "https://danepubliczne.imgw.pl", "znacznik": "CSV",
@@ -140,7 +137,7 @@ def export_acquisition(con) -> None:
                     ["MB", round(sum(f["kB"] for f in imgw_files) / 1024, 1)],
                     ["terminów z pomiarem wiatru", weather_hours]],
          "pliki": imgw_files,
-         "probka": {"typ": "tabela", "opis": f"s_t_{station}_{last_year}.csv – pierwsze 13 godzin, {len(shown)} ze {len(header)} kolumn; WWO6G = status opadu: 8 brak pomiaru (opad mierzony co 6 h), 9 brak zjawiska (nie padało); nazwy z pliku s_t_nagłówek.csv",
+         "probka": {"typ": "tabela", "opis": f"s_t_{station}_{last_year}.csv – 13 godzin wokół pierwszego deszczu w pliku, {len(shown)} ze {len(header)} kolumn; WWO6G = status opadu: 8 brak pomiaru (opad mierzony co 6 h), 9 brak zjawiska (nie padało); nazwy z pliku s_t_nagłówek.csv",
                     "wiersze": [[header[i] for i in shown]] + [[row[i].strip() for i in shown] for row in first_rows]}},
         {"id": "gios_api", "nazwa": "GIOŚ – API jakości powietrza v1", "tk": "TK03", "dostep": "zapytania HTTP",
          "url": config.GIOS_API_URL, "znacznik": "JSON-LD",
@@ -160,7 +157,6 @@ def export_acquisition(con) -> None:
         ["źródła danych", "3", "2 archiwa plików + API"],
         ["surowe pliki", f"{round((sum(f['kB'] for s in sources for f in s['pliki'])) / 1024)} MB", ""],
         ["pomiary godzinowe", thousands(pm_hours + weather_hours), "PM + pogoda, wczytane z plików"],
-        # Ostatni krok to odnośnik do panelu P, w którym dane są czyszczone
         ["przygotowanie danych", "dalej →", "kontrola jakości, agregacja do dób, filtracja", "#przygotowanie"],
     ]
     write("akwizycja.json", {"zrodla": sources, "przeplyw": flow})
@@ -169,26 +165,17 @@ def export_acquisition(con) -> None:
 # --- Panel P: przygotowanie danych ---------------------------------------------------------------
 
 def export_preparation(con) -> None:
-    """Lejek (ile danych zostaje po każdym kroku), tabela kroków, kontrola jakości, przykładowa doba,
-    tabele bazy i wynik filtracji."""
+    """Lejek (ile danych zostaje po każdym kroku), lista kroków, kontrola jakości, przykładowa doba
+    i wynik filtracji."""
     hours = pm_hour_counts(con)
     n_cities = len(config.CITIES)
     in_files = count(con, "SELECT COUNT(*) FROM pm_dobowe") * 24 * 2  # pełna siatka dni × stacji, 24 h, PM10 i PM2.5
     min_h = config.MIN_HOURS_PER_DAY
-    daily = pd.read_sql(f"""SELECT SUM(pm10 IS NOT NULL) pm10, SUM(pm25 IS NOT NULL) pm25,
-        SUM(n_godz_pm10 BETWEEN 1 AND {min_h - 1}) + SUM(n_godz_pm25 BETWEEN 1 AND {min_h - 1}) za_malo FROM pm_dobowe""",
-                        con).iloc[0]
+    daily = pd.read_sql("SELECT SUM(pm10 IS NOT NULL) pm10, SUM(pm25 IS NOT NULL) pm25 FROM pm_dobowe", con).iloc[0]
     n_days = count(con, "SELECT COUNT(DISTINCT data) FROM dzien_miasto_pelny")
     n_city_days = count(con, "SELECT COUNT(*) FROM dzien_miasto_pelny")
     n_complete = count(con, "SELECT COUNT(*) FROM dni_kompletne")
     n_analysis = count(con, "SELECT COUNT(*) FROM dzien_miasto")
-    weather_days = count(con, "SELECT COUNT(*) FROM pogoda_dobowa")
-    possible_weather_days = len(config.IMGW_STATIONS) * n_days
-    # Tabele z etapu czyszczenia (wyniki analiz i klastrów powstają później)
-    db_objects = pd.read_sql("SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') "
-                             "AND name NOT LIKE 'wyniki_%' AND name NOT LIKE 'klastry_%' "
-                             "ORDER BY type, name", con)
-    db_objects["wiersze"] = [count(con, f'SELECT COUNT(*) FROM "{n}"') for n in db_objects["name"]]
 
     funnel = [
         ["pomiary godzinowe PM", thousands(hours["wczytane"]), f"z plików (pustych miejsc: {thousands(in_files - hours['wczytane'])})"],
@@ -212,28 +199,23 @@ def export_preparation(con) -> None:
         "wynik": [n_analysis, f"{n_cities} miasta × {n_complete} pełnych dni"],
     }
     steps = [
-        ["Czas", "UTC (IMGW) → CET (GIOŚ)", "wspólna doba"],
-        ["Wartości niemożliwe", "< 0 albo PM2.5 > PM10 → brak",
-         "0" if not hours["niemozliwe"] else f"{hours['niemozliwe']} zamienionych na brak"],
-        ["Błędy czujników", f"> {ERROR_THRESHOLD} µg/m³ i {ERROR_FACTOR}× więcej niż inne stacje i sąsiednie godziny",
-         f"{hours['usuniete']} usuniętych"],
-        ["Braki w pogodzie", "kod 8 IMGW → brak", f"{thousands(weather_days)} z {thousands(possible_weather_days)} dni"],
-        ["Średnie dobowe", f"min. {min_h} z 24 godzin", f"{thousands(daily['za_malo'])} dób odrzuconych"],
-        ["Zapis", "SQLite db/air.sqlite",
-         f"{(db_objects['type'] == 'table').sum()} tabel, {(db_objects['type'] == 'view').sum()} widoki"],
-        ["Filtracja w bazie", f"widok dzien_miasto: wszystkie {n_cities} miasta pełne", f"{n_complete} z {n_days} dni"],
+        ["Czas", "UTC (IMGW) → CET (GIOŚ)"],
+        ["Wartości niemożliwe", "< 0 albo PM2.5 > PM10 → brak"],
+        ["Błędy czujników", f"> {ERROR_THRESHOLD} µg/m³ i {ERROR_FACTOR}× więcej niż inne stacje i sąsiednie godziny"],
+        ["Braki w pogodzie", "kod 8 IMGW → brak"],
+        ["Średnie dobowe", f"min. {min_h} z 24 godzin"],
+        ["Zapis", "SQLite db/air.sqlite"],
+        ["Filtracja w bazie", f"widok dzien_miasto: wszystkie {n_cities} miasta pełne"],
     ]
 
-    # Kontrola jakości: wynik dla każdej stacji i dwa przykłady decyzji
     summary = pd.read_sql("SELECT * FROM kontrola_pomiarow ORDER BY miasto, wskaznik", con)
     flags = pd.read_sql("SELECT s.miasto, f.* FROM kontrola_flagi f JOIN stacje s USING (kod_stacji)", con)
-    examples = pd.concat([flags[flags["decyzja"] == "usunięta"].nlargest(1, "wartosc"),    # najwyższa usunięta
-                          flags[flags["decyzja"] != "usunięta"].nlargest(1, "wartosc")])   # najwyższa zostawiona
+    examples = pd.concat([flags[flags["decyzja"] == "usunięta"].nlargest(1, "wartosc"),
+                          flags[flags["decyzja"] != "usunięta"].nlargest(1, "wartosc")])
     day = pd.read_sql("SELECT d.*, s.miasto FROM przyklad_doby d JOIN stacje s USING (kod_stacji) ORDER BY godzina", con)
     missing = pd.read_sql("SELECT miasto, zmienna, dni FROM filtracja_braki ORDER BY miasto, zmienna", con)
     write("przygotowanie.json", {
         "lejek": funnel, "lejek_dni": day_funnel, "kroki": steps, "min_godzin": min_h,
-        "tabele": records(db_objects.rename(columns={"name": "nazwa", "type": "typ"})),
         "przyklad_doby": records(day),
         "kontrola": {"prog": ERROR_THRESHOLD, "krotnosc": ERROR_FACTOR, "stacje": records(summary),
                      "przyklady": records(examples)},
@@ -250,7 +232,7 @@ def export_eda(con) -> None:
     hist = pd.read_sql("SELECT * FROM wyniki_histogramy", con)
     days = pd.read_sql("SELECT pm10, klasa FROM dzien_miasto", con)
     bad = config.PM10_CLASS_LABELS[2]
-    limit_3sigma = days["pm10"].mean() + 3 * days["pm10"].std()  # średnia + 3σ dla PM10
+    limit_3sigma = days["pm10"].mean() + 3 * days["pm10"].std()
     write("eksploracja.json", {
         "statystyki": records(stats),
         "histogramy": {name: g[["od", "do", "n"]].values.tolist() for name, g in hist.groupby("zmienna", sort=False)},
@@ -284,9 +266,7 @@ def export_correlations(con) -> None:
     days = pd.read_sql("SELECT miasto, data, sezon, pm10, temp_sr, wiatr_sr FROM dzien_miasto "
                        "WHERE pm10 IS NOT NULL AND temp_sr IS NOT NULL AND wiatr_sr IS NOT NULL", con)
     write("korelacje.json", {
-        # Macierz korelacji Spearmana 7 × 7 (format długi: zakres, zmienna_a, zmienna_b, r, n, p)
         "macierz": records(matrix),
-        # Punkty do wykresu rozrzutu: [temperatura, wiatr, PM10] w podziale na sezon
         "punkty": {season: g[["temp_sr", "wiatr_sr", "pm10"]].round(1).values.tolist()
                    for season, g in days.groupby("sezon")},
     })
@@ -311,7 +291,6 @@ def export_stations(con) -> None:
         rec["biezace"] = {r["wskaznik"]: {"czas": r["czas"], "wartosc": r["wartosc"]} for _, r in current.iterrows()}
         rec["kolor"] = CITY_COLORS[rec["miasto"]]
         out.append(rec)
-    # Pozostałe stacje w Polsce z API GIOŚ (TK03) – na mapie jako tło
     api = json.loads((config.API_RAW / "gios_stations.json").read_text(encoding="utf-8"))
     known = set(stations["kod_stacji"])
     others = [{"kod_stacji": s["Kod stacji"], "nazwa": s["Nazwa stacji"], "miasto": s["Nazwa miasta"],
@@ -328,7 +307,6 @@ def export_now(con) -> dict | None:
     month = int(now["miesiac"].iloc[0])
     days = pd.read_sql("SELECT miasto, pm10, pm25 FROM dzien_miasto "
                        "WHERE CAST(substr(data, 6, 2) AS INTEGER) = ?", con, params=[month])
-    # Kreski służą tylko do rysowania, więc 1 miejsce po przecinku wystarcza
     history = {city: {col: g[col].dropna().round(1).tolist() for col in config.POLLUTANTS}
                for city, g in days.groupby("miasto")}
     return {"miesiac": month, "wiersze": records(now), "historia": history}
@@ -350,7 +328,6 @@ def export_classes(con) -> None:
 
 def export_clusters() -> None:
     report = json.loads((config.DATA_PROCESSED / "klastry_raport.json").read_text(encoding="utf-8"))
-    # Udział każdego typu we wszystkich dniach złych – do kafli na stronie
     total_bad = sum(v["zła"] for v in report["klaster_klasa"].values())
     for p in report["profil"]:
         p["udzial_w_dniach_zlych_pct"] = round(100 * report["klaster_klasa"][str(p["klaster"])]["zła"] / total_bad, 1)
@@ -361,7 +338,6 @@ def export_clusters() -> None:
 
 def export_meta(con) -> None:
     """Zakres dat, miasta z kolorami, progi klas i źródła – używane przez wiele paneli."""
-    # Zakres dat z pełnych danych (przed filtracją), liczba dni-miasto po filtracji
     period = pd.read_sql("SELECT MIN(data) od, MAX(data) do, (SELECT COUNT(*) FROM dzien_miasto) dni "
                          "FROM dzien_miasto_pelny", con).iloc[0]
     current = pd.read_sql("SELECT MIN(czas) od, MAX(czas) do FROM pm_biezace", con).iloc[0]

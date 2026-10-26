@@ -1,58 +1,9 @@
-/* Tokeny kolorów: paleta strony #1D71C1 · #1D96C0 · #1DC3C1 · #A6EBDD · #F8EFEA (motyw jasny i ciemny).
-   Kolory danych kategorycznych (miasta, sezony, klasy, typy dni) pozostają z palety zweryfikowanej
-   pod kątem daltonizmu. Paleta nie ma ciemnego tonu, więc tekst używa granatu #0C2A47 z tej samej rodziny. */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --brand-1: #1d71c1;
   --brand-2: #1d96c0;
   --brand-3: #1dc3c1;
   --brand-4: #a6ebdd;
-  --surface-0: #f8efea;
-  --surface-1: #fffdfb;
-  --surface-2: #e4f6f1;
-  --border: #e7dcd4;
-  --grid: #efe6df;
-  --text-primary: #0c2a47;
-  --text-secondary: #3b5670;
-  --text-muted: #536779;
-  --accent: #1d71c1;
-  --on-accent: #ffffff;
-  --seq: #1d71c1;
-  --header-bg: #1d71c1;
-  --heat-band: rgba(235, 104, 52, 0.09);
-  --season-letni: #2a78d6;
-  --season-grzewczy: #eb6834;
-  --div-mid: #efebe7;
-  --class-dobra: #0ca30c;
-  --class-umiarkowana: #fab219;
-  --class-zla: #d03b3b;
-  --shadow: 0 1px 2px rgba(9, 35, 40, 0.06), 0 2px 10px rgba(9, 35, 40, 0.05);
-  --radius: 0;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --surface-0: #081626;
-    --surface-1: #0d2034;
-    --surface-2: #15304b;
-    --border: #1f3d5c;
-    --grid: #1a3550;
-    --text-primary: #f8efea;
-    --text-secondary: #a6ebdd;
-    --text-muted: #8ea7bd;
-    --accent: #1dc3c1;
-    --on-accent: #081626;
-    --seq: #1dc3c1;
-    --header-bg: #0b2a4a;
-    --heat-band: rgba(217, 89, 38, 0.13);
-    --season-letni: #3987e5;
-    --season-grzewczy: #d95926;
-    --div-mid: #2a3b4d;
-    --shadow: none;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
   --surface-0: #081626;
   --surface-1: #0d2034;
   --surface-2: #15304b;
@@ -69,7 +20,11 @@
   --season-letni: #3987e5;
   --season-grzewczy: #d95926;
   --div-mid: #2a3b4d;
+  --class-dobra: #0ca30c;
+  --class-umiarkowana: #fab219;
+  --class-zla: #d03b3b;
   --shadow: none;
+  --radius: 0;
 }
 
 * { box-sizing: border-box; }
@@ -159,6 +114,7 @@ figcaption .tytul { font-weight: 700; font-size: 16px; }
 figcaption .pod { font-size: 13px; color: var(--text-muted); }
 .narzedzia { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .wykres { position: relative; height: 300px; }
+.wykres-pca { height: auto; max-width: 820px; margin: 0 auto; }  /* wysokość z proporcji osi PCA */
 .siatka-odstep { margin-top: 16px; }
 .przypis { font-size: 13px; color: var(--text-muted); margin: 10px 0 0; }
 
@@ -191,6 +147,14 @@ th:first-child, td:first-child { text-align: left; }
 .znacznik::before { content: ""; width: 9px; height: 9px; border-radius: 0; background: var(--kolor); }
 
 /* Ostatnie 24 h na tle historii: kreski = dni z lat 2023–2025, kółko = teraz */
+.teraz-narzedzia { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.teraz-narzedzia .przypis { margin: 0; }
+.przycisk {
+  font: inherit; font-size: 13px; font-weight: 600; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 0;
+  background: var(--surface-1); color: var(--accent); cursor: pointer;
+}
+.przycisk:hover:not(:disabled), .przycisk:focus-visible { background: var(--accent); color: var(--on-accent); }
+.przycisk:disabled { opacity: 0.6; cursor: progress; }
 .t-wiersz {
   display: grid; grid-template-columns: 110px 170px minmax(0, 1fr) 230px; gap: 16px; align-items: center;
   padding: 8px 0; border-bottom: 1px solid var(--border);
@@ -277,12 +241,11 @@ th:first-child, td:first-child { text-align: left; }
   display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 2px 10px; align-content: start;
 }
 .kp-nr {
-  grid-row: span 3; display: grid; place-items: center; width: 30px; height: 30px; background: var(--brand-1); color: #ffffff;
+  grid-row: span 2; display: grid; place-items: center; width: 30px; height: 30px; background: var(--brand-1); color: #ffffff;
   font: 700 14px/1 ui-monospace, Consolas, "Courier New", monospace;
 }
 .kp-nazwa { font-size: 14px; }
 .kp-co { font-size: 12px; color: var(--text-muted); }
-.kp-wynik { font-size: 13px; font-weight: 700; color: var(--accent); }
 @media (min-width: 1100px) {
   .kroki-p { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 14px; }
   .kroki-p li { grid-template-columns: minmax(0, 1fr); position: relative; }
@@ -307,9 +270,6 @@ th:first-child, td:first-child { text-align: left; }
 .bm-wiersz i { display: block; height: 10px; min-width: 0; max-width: calc(100% - 34px); }
 .bm-wiersz small { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
-/* Szczegóły: zakładki (wspólny styl .zakladka z panelu A) */
-.zakladki.zakladki-p { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.szczegoly-p [role=tabpanel]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .szczegoly-p .tabela-wrap { max-height: 340px; overflow: auto; }
 
 /* Panel A: akwizycja danych – schemat „Droga danych” i podgląd surowych danych.
@@ -442,21 +402,13 @@ th:first-child, td:first-child { text-align: left; }
 .podglad-opis { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 14px; margin: 0 0 16px; font-size: 14px; }
 .podglad-opis dt { color: var(--text-muted); font-weight: 600; }
 .podglad-opis dd { margin: 0; }
-.podglad-opis a { color: var(--accent); overflow-wrap: anywhere; }
-.podglad-siatka { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 .podglad-naglowek {
   margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary);
 }
 .podglad-naglowek span { margin-left: 6px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
 .podglad .tabela-wrap { max-height: 260px; overflow: auto; }
-.pliki { font-size: 13px; }
-.pliki th, .pliki td { padding: 5px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.pliki th { position: sticky; top: 0; background: var(--surface-1); }
-.pliki td:first-child { font: 12px/1.5 ui-monospace, Consolas, "Courier New", monospace; }
-.pliki td:last-child { color: var(--text-muted); }
 @container (min-width: 720px) { .zakladki { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @container (min-width: 960px) { .zakladka { flex-direction: row; align-items: center; gap: 10px; } }
-@container (min-width: 760px) { .podglad-siatka { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); } }
 
 .surowe { font: 12px/1.5 ui-monospace, Consolas, "Courier New", monospace; background: var(--surface-2); border: 1px solid var(--border); }
 pre.surowe { margin: 0; padding: 10px 12px; max-height: 260px; overflow: auto; white-space: pre; }
@@ -483,7 +435,5 @@ table.surowe th { color: var(--text-secondary); }
 .legenda-linia.mediana { border-top-style: dashed; border-color: var(--text-primary); }
 .odbiega { color: var(--class-zla); font-weight: 700; }
 #tabela-3sigma tr.wzorzec td { color: var(--text-muted); border-bottom: 2px solid var(--border); }
-.testy th, .testy td { white-space: normal; text-align: left; vertical-align: top; min-width: 70px; }
-.testy td:nth-child(3) { min-width: 180px; }
 /* para nieistotna w macierzy korelacji (p ≥ 0,05) */
 .macierz td.ns { font-style: italic; font-weight: 400; text-decoration: line-through; }

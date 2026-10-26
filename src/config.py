@@ -1,9 +1,3 @@
-"""Ustawienia całego projektu: ścieżki, lata, źródła danych, miasta i stacje, progi.
-
-Wszystkie kody stacji i identyfikatory plików zostały odczytane z faktycznie
-pobranych danych (strona archiwum GIOŚ, metadane GIOŚ, wykaz stacji IMGW).
-Pozostałe moduły biorą stąd stałe zamiast wpisywać je u siebie.
-"""
 from pathlib import Path
 
 # --- Ścieżki ---------------------------------------------------------------
@@ -20,17 +14,9 @@ IMGW_RAW = DATA_RAW / "imgw"
 YEARS = [2023, 2024, 2025]
 
 # --- GIOŚ: archiwum plików (https://powietrze.gios.gov.pl/pjp/archives) ----
-GIOS_DOWNLOAD_URL = "https://powietrze.gios.gov.pl/pjp/archives/downloadFile/{file_id}"
-# Identyfikatory plików odczytane ze strony archiwum ("Wyniki pomiarów z RRRR roku")
-GIOS_ARCHIVE_IDS = {2023: 564, 2024: 582, 2025: 644}
-# "Metadane oraz kody stacji i stanowisk pomiarowych" (plik XLSX, nie ZIP)
-GIOS_METADATA_ID = 643
 # Pliki godzinowe (stacje automatyczne); w archiwum czas podany w CET (UTC+1)
 GIOS_POLLUTANTS = ["PM10", "PM25"]
 GIOS_HEADER_ROWS = 6  # Nr, Kod stacji, Wskaźnik, Czas uśredniania, Jednostka, Kod stanowiska
-
-# --- IMGW: dane publiczne (https://danepubliczne.imgw.pl) ------------------
-IMGW_BASE_URL = "https://danepubliczne.imgw.pl/data/dane_pomiarowo_obserwacyjne/dane_meteorologiczne"
 IMGW_ENCODING = "cp1250"
 # Stacje synoptyczne (kod 3-cyfrowy z nazw plików, pełny kod NSP z wykazu stacji)
 IMGW_STATIONS = {
@@ -61,7 +47,6 @@ GIOS_STATIONS = [c["gios"] for c in CITIES.values()]
 # Średnia dobowa liczona tylko przy co najmniej 75% ważnych godzin (18 z 24) –
 # kryterium kompletności stosowane w ocenie jakości powietrza (dyrektywa 2008/50/WE).
 MIN_HOURS_PER_DAY = 18
-# Sezon grzewczy: październik–marzec; letni: kwiecień–wrzesień
 HEATING_MONTHS = [10, 11, 12, 1, 2, 3]
 
 # Klasy jakości dnia wg dobowego PM10 [µg/m3]:

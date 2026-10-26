@@ -1,22 +1,14 @@
-"""
-
-1. Sezon grzewczy a letni: statystyki sezonowe i średnie miesięczne.
-2. Pogoda a pył: korelacje Pearsona i Spearmana oraz pełna macierz korelacji.
-3. Ranking miast; najnowsze odczyty z API GIOŚ na tle historii.
-4. Klasy jakości dnia: ile dni dobrych, umiarkowanych i złych (zliczenia według progów PM10).
-
-"""
 import sqlite3
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from src import config
 from src.plots import plot_classes, plot_correlations, plot_monthly, plot_ranking, plot_scatter, plot_seasonal
-from src.significance import spearman_p
 
 POLLUTANTS, WEATHER, SEASONS = config.POLLUTANTS, config.WEATHER, config.SEASONS
-VARIABLES = {**POLLUTANTS, **WEATHER}  # zmienne macierzy korelacji
+VARIABLES = {**POLLUTANTS, **WEATHER}
 LIMIT = config.PM10_DAILY_LIMIT
 
 
@@ -42,7 +34,6 @@ def seasonal_stats(days: pd.DataFrame) -> pd.DataFrame:
                              "p90": v.quantile(0.9),
                              "dni_powyzej_50": int((v > LIMIT).sum()) if col == "pm10" else None})
     df = pd.DataFrame(rows)
-    # Ile razy wyższe stężenie w sezonie grzewczym niż w letnim
     means = df.pivot_table(index=["miasto", "wskaznik"], columns="sezon", values="srednia")
     ratio = (means["grzewczy"] / means["letni"]).rename("iloraz_grzewczy_letni").reset_index()
     return df.merge(ratio, on=["miasto", "wskaznik"]).round(2)
@@ -63,30 +54,17 @@ def scopes(days: pd.DataFrame) -> dict[str, pd.DataFrame]:
     return {"cały rok": days, **{season: days[days["sezon"] == season] for season in SEASONS}}
 
 
-def correlations(days: pd.DataFrame) -> pd.DataFrame:
-    """Korelacje Pearsona i Spearmana pyłu z każdą zmienną pogodową (dane z wszystkich miast razem)."""
-    rows = []
-    for scope, g in scopes(days).items():
-        for method in ["pearson", "spearman"]:
-            for col, name in POLLUTANTS.items():
-                for wcol, wname in WEATHER.items():
-                    pair = g[[col, wcol]].dropna()
-                    rows.append({"zakres": scope, "metoda": method, "wskaznik": name, "zmienna": wname,
-                                 "r": pair[col].corr(pair[wcol], method=method), "n": len(pair)})
-    return pd.DataFrame(rows).round(3)
-
-
 def correlation_matrix(days: pd.DataFrame) -> pd.DataFrame:
     """Macierz korelacji Spearmana wszystkich par zmiennych (pył i pogoda), z p-wartością każdej pary."""
     rows = []
     for scope, g in scopes(days).items():
         g = g[list(VARIABLES)].dropna().rename(columns=VARIABLES)  # te same dni dla każdej pary
-        m = g.corr(method="spearman").rename_axis(index="zmienna_a", columns="zmienna_b")
-        rows.append(m.stack().rename("r").reset_index().assign(zakres=scope, n=len(g)))
+        res = stats.spearmanr(g)
+        r, p = (pd.DataFrame(m, index=g.columns, columns=g.columns).stack() for m in (res.statistic, res.pvalue))
+        pairs = pd.DataFrame({"r": r, "p": p}).rename_axis(["zmienna_a", "zmienna_b"]).reset_index()
+        rows.append(pairs.assign(zakres=scope, n=len(g)))
     # Bez zaokrąglania: strona i wykres zaokrąglają raz do 2 miejsc (−0,3047 → −0,30, a nie −0,305 → −0,31)
-    out = pd.concat(rows, ignore_index=True)[["zakres", "zmienna_a", "zmienna_b", "r", "n"]]
-    out["p"] = [spearman_p(r, n) for r, n in zip(out["r"], out["n"])]
-    return out
+    return pd.concat(rows, ignore_index=True)[["zakres", "zmienna_a", "zmienna_b", "r", "n", "p"]]
 
 
 # --- Pytanie 3: ranking miast -------------------------------------------------------------------
@@ -124,7 +102,7 @@ def current_vs_history(days: pd.DataFrame, current: pd.DataFrame) -> pd.DataFram
                 "miasto": city, "wskaznik": col, "od": window["czas"].min().strftime("%Y-%m-%d %H:%M"),
                 "do": end.strftime("%Y-%m-%d %H:%M"), "godzin": len(values), "srednia_24h": mean,
                 "miesiac": month, "dni_historia": len(past), "mediana_historia": past.median(),
-                "nizej_pct": 100 * (past < mean).mean(),  # % dni z historii z niższą średnią
+                "nizej_pct": 100 * (past < mean).mean(),
                 # Klasa dnia jest określona tylko dla PM10 (progi jak w widoku dzien_miasto)
                 "klasa": (config.PM10_CLASS_LABELS[np.searchsorted(config.PM10_CLASS_BINS, mean)]
                           if col == "pm10" else None),
@@ -154,16 +132,15 @@ def run() -> None:
     with sqlite3.connect(config.DB_PATH) as con:
         days = load(con)
         results = {
-            "wyniki_sezonowe": seasonal_stats(days),                 # pytanie 1
+            "wyniki_sezonowe": seasonal_stats(days),
             "wyniki_miesieczne": monthly_means(days),
-            "wyniki_korelacje": correlations(days),                  # pytanie 2
             "wyniki_macierz_korelacji": correlation_matrix(days),
-            "wyniki_ranking": city_ranking(days),                    # pytanie 3
-            "wyniki_klasy": class_counts(days),                      # pytanie 4
+            "wyniki_ranking": city_ranking(days),
+            "wyniki_klasy": class_counts(days),
         }
         current = pd.read_sql("SELECT b.czas, s.miasto, b.wskaznik, b.wartosc FROM pm_biezace b "
                               "JOIN stacje s USING (kod_stacji)", con, parse_dates=["czas"])
-        results["wyniki_biezace"] = current_vs_history(days, current)  # odczyty z API na tle historii
+        results["wyniki_biezace"] = current_vs_history(days, current)
         for name, df in results.items():
             df.to_sql(name, con, if_exists="replace", index=False)
             print(f"  {name}: {len(df)} wierszy")

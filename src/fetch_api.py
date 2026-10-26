@@ -1,13 +1,3 @@
-"""TK03 – pobieranie danych z internetu (API GIOŚ, JSON-LD).
-
-Klient HTTP obsługuje timeouty, ponowienia z wykładniczym odstępem (błędy sieci,
-HTTP 429 i 5xx, z uwzględnieniem nagłówka Retry-After) oraz minimalny odstęp
-między zapytaniami (limity zapytań).
-
-Surowe odpowiedzi JSON są zapisywane w data/raw/api/. Lista stacji jest pobierana
-tylko wtedy, gdy pliku jeszcze nie ma; bieżące pomiary trafiają do nowego pliku
-ze znacznikiem czasu przy każdym uruchomieniu.
-"""
 import json
 import time
 from datetime import datetime
@@ -158,7 +148,7 @@ def save_request_log(clients: dict[str, ApiClient], from_disk: dict[str, bool]) 
     }
     config.DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
     (config.DATA_PROCESSED / "akwizycja_api.json").write_text(
-        json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
+        json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def run() -> dict[str, pd.DataFrame]:

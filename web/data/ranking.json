@@ -1,1 +1,48 @@
-{"ranking":[{"miasto":"Katowice","pozycja":1,"pm10_srednia":25.47,"pm10_mediana":21.59,"pm25_srednia":17.86,"dni_pm10":1036,"dni_powyzej_50":58,"dni_zla_pct":5.6,"dni_powyzej_50_rocznie":19.33},{"miasto":"Wrocław","pozycja":2,"pm10_srednia":23.21,"pm10_mediana":20.02,"pm25_srednia":15.26,"dni_pm10":1036,"dni_powyzej_50":45,"dni_zla_pct":4.34,"dni_powyzej_50_rocznie":15.0},{"miasto":"Warszawa","pozycja":3,"pm10_srednia":22.09,"pm10_mediana":19.04,"pm25_srednia":16.64,"dni_pm10":1036,"dni_powyzej_50":39,"dni_zla_pct":3.76,"dni_powyzej_50_rocznie":13.0},{"miasto":"Gdańsk","pozycja":4,"pm10_srednia":18.16,"pm10_mediana":15.73,"pm25_srednia":14.24,"dni_pm10":1036,"dni_powyzej_50":9,"dni_zla_pct":0.87,"dni_powyzej_50_rocznie":3.0}]}
+{
+  "ranking": [
+    {
+      "miasto": "Katowice",
+      "pozycja": 1,
+      "pm10_srednia": 25.47,
+      "pm10_mediana": 21.59,
+      "pm25_srednia": 17.86,
+      "dni_pm10": 1036,
+      "dni_powyzej_50": 58,
+      "dni_zla_pct": 5.6,
+      "dni_powyzej_50_rocznie": 19.33
+    },
+    {
+      "miasto": "Wrocław",
+      "pozycja": 2,
+      "pm10_srednia": 23.21,
+      "pm10_mediana": 20.02,
+      "pm25_srednia": 15.26,
+      "dni_pm10": 1036,
+      "dni_powyzej_50": 45,
+      "dni_zla_pct": 4.34,
+      "dni_powyzej_50_rocznie": 15.0
+    },
+    {
+      "miasto": "Warszawa",
+      "pozycja": 3,
+      "pm10_srednia": 22.09,
+      "pm10_mediana": 19.04,
+      "pm25_srednia": 16.64,
+      "dni_pm10": 1036,
+      "dni_powyzej_50": 39,
+      "dni_zla_pct": 3.76,
+      "dni_powyzej_50_rocznie": 13.0
+    },
+    {
+      "miasto": "Gdańsk",
+      "pozycja": 4,
+      "pm10_srednia": 18.16,
+      "pm10_mediana": 15.73,
+      "pm25_srednia": 14.24,
+      "dni_pm10": 1036,
+      "dni_powyzej_50": 9,
+      "dni_zla_pct": 0.87,
+      "dni_powyzej_50_rocznie": 3.0
+    }
+  ]
+}

@@ -1,1 +1,551 @@
-{"zrodla":[{"id":"gios","nazwa":"GIOŚ – archiwum pomiarów","tk":"TK02","dostep":"plik lokalny","url":"https://powietrze.gios.gov.pl/pjp/archives","znacznik":"XLSX","format":"ZIP z plikami XLSX · czas CET, znacznik = koniec godziny","co":"godzinowe PM10 i PM2.5 z lat 2023–2025 dla 4 stacji + metadane stacji","krotko":"PM10 i PM2.5 co godzinę · 4 stacje","liczby":[["pliki",4],["MB",164],["ważnych pomiarów godzinowych",207969]],"pliki":[{"nazwa":"metadane.xlsx","kB":542,"pobrano":"2026-10-07 19:24"},{"nazwa":"2023.zip","kB":69777,"pobrano":"2026-10-07 19:25"},{"nazwa":"2024.zip","kB":48323,"pobrano":"2026-10-07 19:26"},{"nazwa":"2025.zip","kB":49169,"pobrano":"2026-10-07 19:27"}],"probka":{"typ":"tabela","opis":"2025_PM10_1g.xlsx – 6 wierszy nagłówka, potem godziny; 4 z ok. 185 kolumn","wiersze":[["Nr","1","2","3"],["Kod stacji","DsChojnowMalMOB","DsCzerStraza","DsDusznSportMOB"],["Wskaźnik","PM10","PM10","PM10"],["Czas uśredniania","1g","1g","1g"],["Jednostka","ug/m3","ug/m3","ug/m3"],["Kod stanowiska","DsChojnowMalMOB-PM10-1g","DsCzerStraza-PM10-1g","DsDusznSportMOB-PM10-1g"],["2025-01-01 01:00:00.000","220.7","8.8",""],["2025-01-01 02:00:00.000","112.8","8.4",""],["2025-01-01 03:00:00.005","14.1","8.8",""]]}},{"id":"imgw","nazwa":"IMGW-PIB – dane synoptyczne","tk":"TK02","dostep":"plik lokalny","url":"https://danepubliczne.imgw.pl","znacznik":"CSV","format":"ZIP z plikami CSV bez nagłówka · kodowanie cp1250 · czas UTC","co":"terminowe (godzinowe) obserwacje z 4 stacji: temperatura, wiatr, wilgotność, ciśnienie, opad 6-godzinny","krotko":"pogoda co godzinę · 4 stacje synoptyczne","liczby":[["plików",12],["MB",4.2],["terminów z pomiarem wiatru",105125]],"pliki":[{"nazwa":"2023_375_s.zip","kB":364,"pobrano":"2026-10-25 02:47"},{"nazwa":"2023_560_s.zip","kB":404,"pobrano":"2026-10-25 02:49"},{"nazwa":"2023_424_s.zip","kB":397,"pobrano":"2026-10-25 02:47"},{"nazwa":"2023_155_s.zip","kB":328,"pobrano":"2026-10-25 02:47"},{"nazwa":"2024_375_s.zip","kB":358,"pobrano":"2026-10-25 02:47"},{"nazwa":"2024_560_s.zip","kB":390,"pobrano":"2026-10-25 02:49"},{"nazwa":"2024_424_s.zip","kB":426,"pobrano":"2026-10-25 02:47"},{"nazwa":"2024_155_s.zip","kB":319,"pobrano":"2026-10-25 02:47"},{"nazwa":"2025_375_s.zip","kB":332,"pobrano":"2026-10-25 02:47"},{"nazwa":"2025_560_s.zip","kB":354,"pobrano":"2026-10-25 02:49"},{"nazwa":"2025_424_s.zip","kB":358,"pobrano":"2026-10-25 02:47"},{"nazwa":"2025_155_s.zip","kB":292,"pobrano":"2026-10-25 02:47"}],"probka":{"typ":"tabela","opis":"s_t_375_2025.csv – pierwsze 13 godzin, 13 ze 107 kolumn; WWO6G = status opadu: 8 brak pomiaru (opad mierzony co 6 h), 9 brak zjawiska (nie padało); nazwy z pliku s_t_nagłówek.csv","wiersze":[["NSP","POST","ROK","MC","DZ","GG","KRWR","FWR","TEMP","WLGW","PPPS","WO6G","WWO6G"],["352200375","WARSZAWA","2025","01","01","00","215","2","2.1","76","1006.4","","9"],["352200375","WARSZAWA","2025","01","01","01","221","2","2.8","72","1006.1","","8"],["352200375","WARSZAWA","2025","01","01","02","241","2","3.0","71","1005.9","","8"],["352200375","WARSZAWA","2025","01","01","03","204","1","1.3","76","1005.0","","8"],["352200375","WARSZAWA","2025","01","01","04","224","2","1.8","71","1004.6","","8"],["352200375","WARSZAWA","2025","01","01","05","223","3","2.2","69","1004.1","","8"],["352200375","WARSZAWA","2025","01","01","06","217","3","1.6","71","1003.5","","9"],["352200375","WARSZAWA","2025","01","01","07","227","3","2.0","70","1003.1","","8"],["352200375","WARSZAWA","2025","01","01","08","222","4","2.7","67","1002.9","","8"],["352200375","WARSZAWA","2025","01","01","09","226","3","3.1","65","1002.7","","8"],["352200375","WARSZAWA","2025","01","01","10","222","3","3.8","65","1001.9","","8"],["352200375","WARSZAWA","2025","01","01","11","235","4","5.3","64","1001.3","","8"],["352200375","WARSZAWA","2025","01","01","12","238","3","5.8","64","1000.7","","9"]]}},{"id":"gios_api","nazwa":"GIOŚ – API jakości powietrza v1","tk":"TK03","dostep":"zapytania HTTP","url":"https://api.gios.gov.pl/pjp-api/v1/rest","znacznik":"JSON-LD","format":"JSON-LD (nagłówek Accept: application/ld+json) · stronicowanie page/size","co":"lista stacji, stanowiska pomiarowe i bieżące odczyty PM10/PM2.5 (do 3 dób wstecz) – w panelu 3 na tle historii","krotko":"lista stacji i bieżące odczyty PM10/PM2.5","liczby":[["stacji w Polsce",288],["bieżących odczytów",532],["zapisanych migawek",23]],"pliki":[{"nazwa":"gios_stations.json","kB":103,"pobrano":"2026-10-07 22:01"},{"nazwa":"gios_current_20261025_1837.json","kB":80,"pobrano":"2026-10-25 18:37"}],"probka":{"typ":"json","opis":"odpowiedź station/findAll (1 stacja) i data/getData (2 odczyty)","tekst":"{\n  \"stacja\": {\n    \"Identyfikator stacji\": 10956,\n    \"Kod stacji\": \"MzWarBajkowa\",\n    \"Nazwa stacji\": \"Warszawa, ul. Bajkowa\",\n    \"WGS84 φ N\": \"52.188474\",\n    \"WGS84 λ E\": \"21.176233\",\n    \"Identyfikator miasta\": 1006,\n    \"Nazwa miasta\": \"Warszawa\",\n    \"Gmina\": \"Warszawa\",\n    \"Powiat\": \"Warszawa\",\n    \"Województwo\": \"MAZOWIECKIE\",\n    \"Ulica\": \"ul. Bajkowa 17/21\"\n  },\n  \"odczyty\": [\n    {\n      \"Kod stanowiska\": \"MzWarBajkowa-PM10-1g\",\n      \"Data\": \"2026-10-25 18:00:00\",\n      \"Wartość\": 16.6\n    },\n    {\n      \"Kod stanowiska\": \"MzWarBajkowa-PM10-1g\",\n      \"Data\": \"2026-10-25 17:00:00\",\n      \"Wartość\": 17.2\n    }\n  ]\n}"}}],"przeplyw":[["źródła danych","3","2 archiwa plików + API"],["surowe pliki","168 MB",""],["pomiary godzinowe","313 094","PM + pogoda, wczytane z plików"],["przygotowanie danych","dalej →","kontrola jakości, agregacja do dób, filtracja","#przygotowanie"]]}
+{
+  "zrodla": [
+    {
+      "id": "gios",
+      "nazwa": "GIOŚ – archiwum pomiarów",
+      "tk": "TK02",
+      "dostep": "plik lokalny",
+      "url": "https://powietrze.gios.gov.pl/pjp/archives",
+      "znacznik": "XLSX",
+      "format": "ZIP z plikami XLSX · czas CET, znacznik = koniec godziny",
+      "co": "godzinowe PM10 i PM2.5 z lat 2023–2025 dla 4 stacji + metadane stacji",
+      "krotko": "PM10 i PM2.5 co godzinę · 4 stacje",
+      "liczby": [
+        [
+          "pliki",
+          4
+        ],
+        [
+          "MB",
+          164
+        ],
+        [
+          "ważnych pomiarów godzinowych",
+          207969
+        ]
+      ],
+      "pliki": [
+        {
+          "nazwa": "metadane.xlsx",
+          "kB": 542,
+          "pobrano": "2026-10-07 19:24"
+        },
+        {
+          "nazwa": "2023.zip",
+          "kB": 69777,
+          "pobrano": "2026-10-07 19:25"
+        },
+        {
+          "nazwa": "2024.zip",
+          "kB": 48323,
+          "pobrano": "2026-10-07 19:26"
+        },
+        {
+          "nazwa": "2025.zip",
+          "kB": 49169,
+          "pobrano": "2026-10-07 19:27"
+        }
+      ],
+      "probka": {
+        "typ": "tabela",
+        "opis": "2025_PM10_1g.xlsx – 6 wierszy nagłówka, potem godziny; kolumny naszych 4 stacji z ok. 184",
+        "wiersze": [
+          [
+            "Nr",
+            "13",
+            "85",
+            "125",
+            "152"
+          ],
+          [
+            "Kod stacji",
+            "DsWrocWybCon",
+            "MzWarBajkowa",
+            "PmGdaLeczkow",
+            "SlKatoKossut"
+          ],
+          [
+            "Wskaźnik",
+            "PM10",
+            "PM10",
+            "PM10",
+            "PM10"
+          ],
+          [
+            "Czas uśredniania",
+            "1g",
+            "1g",
+            "1g",
+            "1g"
+          ],
+          [
+            "Jednostka",
+            "ug/m3",
+            "ug/m3",
+            "ug/m3",
+            "ug/m3"
+          ],
+          [
+            "Kod stanowiska",
+            "DsWrocWybCon-PM10-1g",
+            "MzWarBajkowa-PM10-1g",
+            "PmGdaLeczkow-PM10-1g",
+            "SlKatoKossut-PM10-1g"
+          ],
+          [
+            "2025-01-01 01:00:00.000",
+            "157.6",
+            "57.6",
+            "24.4",
+            "53.8"
+          ],
+          [
+            "2025-01-01 02:00:00.000",
+            "49.7",
+            "41.7",
+            "11.8",
+            "38.3"
+          ],
+          [
+            "2025-01-01 03:00:00.005",
+            "23.1",
+            "32.2",
+            "11.6",
+            "35.7"
+          ],
+          [
+            "2025-01-01 04:00:00.010",
+            "19.9",
+            "28.9",
+            "10.5",
+            "29"
+          ],
+          [
+            "2025-01-01 05:00:00.015",
+            "20.1",
+            "27.4",
+            "8.9",
+            "24.8"
+          ],
+          [
+            "2025-01-01 06:00:00.020",
+            "20.9",
+            "24.6",
+            "8.9",
+            "22"
+          ],
+          [
+            "2025-01-01 07:00:00.025",
+            "19.5",
+            "19.7",
+            "10",
+            "21.4"
+          ],
+          [
+            "2025-01-01 08:00:00.030",
+            "21.3",
+            "18.1",
+            "15.4",
+            "23"
+          ],
+          [
+            "2025-01-01 09:00:00.035",
+            "19.4",
+            "15.3",
+            "14.4",
+            "24"
+          ],
+          [
+            "2025-01-01 10:00:00.040",
+            "19.2",
+            "15.5",
+            "12.4",
+            "23.9"
+          ],
+          [
+            "2025-01-01 11:00:00.045",
+            "18.9",
+            "15.8",
+            "14.1",
+            "24.1"
+          ],
+          [
+            "2025-01-01 12:00:00.050",
+            "19.1",
+            "15.2",
+            "14.1",
+            "21.8"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "imgw",
+      "nazwa": "IMGW-PIB – dane synoptyczne",
+      "tk": "TK02",
+      "dostep": "plik lokalny",
+      "url": "https://danepubliczne.imgw.pl",
+      "znacznik": "CSV",
+      "format": "ZIP z plikami CSV bez nagłówka · kodowanie cp1250 · czas UTC",
+      "co": "terminowe (godzinowe) obserwacje z 4 stacji: temperatura, wiatr, wilgotność, ciśnienie, opad 6-godzinny",
+      "krotko": "pogoda co godzinę · 4 stacje synoptyczne",
+      "liczby": [
+        [
+          "plików",
+          12
+        ],
+        [
+          "MB",
+          4.2
+        ],
+        [
+          "terminów z pomiarem wiatru",
+          105125
+        ]
+      ],
+      "pliki": [
+        {
+          "nazwa": "2023_375_s.zip",
+          "kB": 364,
+          "pobrano": "2026-10-25 02:47"
+        },
+        {
+          "nazwa": "2023_560_s.zip",
+          "kB": 404,
+          "pobrano": "2026-10-25 02:49"
+        },
+        {
+          "nazwa": "2023_424_s.zip",
+          "kB": 397,
+          "pobrano": "2026-10-25 02:47"
+        },
+        {
+          "nazwa": "2023_155_s.zip",
+          "kB": 328,
+          "pobrano": "2026-10-25 02:47"
+        },
+        {
+          "nazwa": "2024_375_s.zip",
+          "kB": 358,
+          "pobrano": "2026-10-25 02:47"
+        },
+        {
+          "nazwa": "2024_560_s.zip",
+          "kB": 390,
+          "pobrano": "2026-10-25 02:49"
+        },
+        {
+          "nazwa": "2024_424_s.zip",
+          "kB": 426,
+          "pobrano": "2026-10-25 02:47"
+        },
+        {
+          "nazwa": "2024_155_s.zip",
+          "kB": 319,
+          "pobrano": "2026-10-25 02:47"
+        },
+        {
+          "nazwa": "2025_375_s.zip",
+          "kB": 332,
+          "pobrano": "2026-10-25 02:47"
+        },
+        {
+          "nazwa": "2025_560_s.zip",
+          "kB": 354,
+          "pobrano": "2026-10-25 02:49"
+        },
+        {
+          "nazwa": "2025_424_s.zip",
+          "kB": 358,
+          "pobrano": "2026-10-25 02:47"
+        },
+        {
+          "nazwa": "2025_155_s.zip",
+          "kB": 292,
+          "pobrano": "2026-10-25 02:47"
+        }
+      ],
+      "probka": {
+        "typ": "tabela",
+        "opis": "s_t_375_2025.csv – 13 godzin wokół pierwszego deszczu w pliku, 13 ze 107 kolumn; WWO6G = status opadu: 8 brak pomiaru (opad mierzony co 6 h), 9 brak zjawiska (nie padało); nazwy z pliku s_t_nagłówek.csv",
+        "wiersze": [
+          [
+            "NSP",
+            "POST",
+            "ROK",
+            "MC",
+            "DZ",
+            "GG",
+            "KRWR",
+            "FWR",
+            "TEMP",
+            "WLGW",
+            "PPPS",
+            "WO6G",
+            "WWO6G"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "12",
+            "254",
+            "7",
+            "7.5",
+            "65",
+            "989.9",
+            "0.0",
+            ""
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "13",
+            "272",
+            "6",
+            "4.1",
+            "73",
+            "991.1",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "14",
+            "270",
+            "6",
+            "3.4",
+            "66",
+            "992.2",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "15",
+            "276",
+            "6",
+            "3.2",
+            "65",
+            "992.6",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "16",
+            "274",
+            "6",
+            "2.5",
+            "64",
+            "993.5",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "17",
+            "267",
+            "5",
+            "2.1",
+            "66",
+            "994.1",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "18",
+            "262",
+            "5",
+            "1.4",
+            "70",
+            "994.4",
+            "0.1",
+            ""
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "19",
+            "259",
+            "4",
+            "0.8",
+            "70",
+            "994.6",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "20",
+            "271",
+            "3",
+            "-0.2",
+            "76",
+            "995.1",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "21",
+            "242",
+            "2",
+            "-0.5",
+            "77",
+            "995.4",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "22",
+            "254",
+            "2",
+            "-1.0",
+            "79",
+            "995.4",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "02",
+            "23",
+            "253",
+            "3",
+            "-1.1",
+            "83",
+            "995.4",
+            "",
+            "8"
+          ],
+          [
+            "352200375",
+            "WARSZAWA",
+            "2025",
+            "01",
+            "03",
+            "00",
+            "251",
+            "2",
+            "-1.3",
+            "87",
+            "995.6",
+            "",
+            "9"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "gios_api",
+      "nazwa": "GIOŚ – API jakości powietrza v1",
+      "tk": "TK03",
+      "dostep": "zapytania HTTP",
+      "url": "https://api.gios.gov.pl/pjp-api/v1/rest",
+      "znacznik": "JSON-LD",
+      "format": "JSON-LD (nagłówek Accept: application/ld+json) · stronicowanie page/size",
+      "co": "lista stacji, stanowiska pomiarowe i bieżące odczyty PM10/PM2.5 (do 3 dób wstecz) – w panelu 3 na tle historii",
+      "krotko": "lista stacji i bieżące odczyty PM10/PM2.5",
+      "liczby": [
+        [
+          "stacji w Polsce",
+          288
+        ],
+        [
+          "bieżących odczytów",
+          422
+        ],
+        [
+          "zapisanych migawek",
+          24
+        ]
+      ],
+      "pliki": [
+        {
+          "nazwa": "gios_stations.json",
+          "kB": 103,
+          "pobrano": "2026-10-07 22:01"
+        },
+        {
+          "nazwa": "gios_current_20261026_0453.json",
+          "kB": 66,
+          "pobrano": "2026-10-26 04:53"
+        }
+      ],
+      "probka": {
+        "typ": "json",
+        "opis": "odpowiedź station/findAll (1 stacja) i data/getData (2 odczyty)",
+        "tekst": "{\n  \"stacja\": {\n    \"Identyfikator stacji\": 10956,\n    \"Kod stacji\": \"MzWarBajkowa\",\n    \"Nazwa stacji\": \"Warszawa, ul. Bajkowa\",\n    \"WGS84 φ N\": \"52.188474\",\n    \"WGS84 λ E\": \"21.176233\",\n    \"Identyfikator miasta\": 1006,\n    \"Nazwa miasta\": \"Warszawa\",\n    \"Gmina\": \"Warszawa\",\n    \"Powiat\": \"Warszawa\",\n    \"Województwo\": \"MAZOWIECKIE\",\n    \"Ulica\": \"ul. Bajkowa 17/21\"\n  },\n  \"odczyty\": [\n    {\n      \"Kod stanowiska\": \"MzWarBajkowa-PM10-1g\",\n      \"Data\": \"2026-10-26 04:00:00\",\n      \"Wartość\": 6.0\n    },\n    {\n      \"Kod stanowiska\": \"MzWarBajkowa-PM10-1g\",\n      \"Data\": \"2026-10-26 03:00:00\",\n      \"Wartość\": 5.8\n    }\n  ]\n}"
+      }
+    }
+  ],
+  "przeplyw": [
+    [
+      "źródła danych",
+      "3",
+      "2 archiwa plików + API"
+    ],
+    [
+      "surowe pliki",
+      "168 MB",
+      ""
+    ],
+    [
+      "pomiary godzinowe",
+      "313 094",
+      "PM + pogoda, wczytane z plików"
+    ],
+    [
+      "przygotowanie danych",
+      "dalej →",
+      "kontrola jakości, agregacja do dób, filtracja",
+      "#przygotowanie"
+    ]
+  ]
+}

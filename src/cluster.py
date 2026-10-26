@@ -1,18 +1,10 @@
-"""TK04 – klasteryzacja: podział dni na typy pogody i sprawdzenie, w którym typie jest najwięcej pyłu.
-
-Kroki (funkcja run na dole pliku):
-1. Dane: jeden wiersz = dzień na jednej stacji IMGW (każde miasto ma swoją).
-   Ciśnienie jako różnica od średniej stacji.
-2. Cechy: tylko pogoda, opad zlogarytmowany, wszystko sprowadzone do jednej skali.
-3. Wybór liczby typów k (2–8) według wskaźnika silhouette.
-4. KMeans i opis typów: średnia pogoda, pył (nie brał udziału w podziale), udział dni złych.
-"""
 import json
 import sqlite3
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from sklearn.metrics import adjusted_rand_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
 
@@ -26,7 +18,6 @@ K_RANGE = range(2, 9)
 RANDOM_STATE = 42
 # Paleta kategoryczna w stałej kolejności (klaster 1, 2, ... – posortowane malejąco wg PM10)
 CLUSTER_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
-# Słowa do nazw klastrów: (cecha, znak z-score) -> przymiotnik
 DESCRIPTORS = {("temp_sr", 1): "ciepłe", ("temp_sr", -1): "zimne",
                ("wiatr_sr", 1): "wietrzne", ("wiatr_sr", -1): "bezwietrzne",
                ("opad", 1): "deszczowe", ("opad", -1): "bez opadu",
@@ -37,7 +28,6 @@ DESCRIPTORS = {("temp_sr", 1): "ciepłe", ("temp_sr", -1): "zimne",
 def load() -> tuple[pd.DataFrame, pd.DataFrame]:
     """1. Pogoda dni pełnych (dzień × stacja IMGW) i pył dni-miasto do opisu typów."""
     with sqlite3.connect(config.DB_PATH) as con:
-        # Tylko dni kompletne (te same co w zbiorze analitycznym dzien_miasto)
         weather = pd.read_sql("SELECT w.data, w.imgw_kod, " + ", ".join(f"w.{f}" for f in FEATURES)
                               + " FROM pogoda_dobowa w JOIN dni_kompletne USING (data)", con)
         days = pd.read_sql("SELECT miasto, data, pm10, pm25, sezon, klasa FROM dzien_miasto", con)
@@ -87,7 +77,6 @@ def profile(weather: pd.DataFrame, days: pd.DataFrame, X: np.ndarray, k: int) ->
     weather["klaster"] = weather["klaster_km"].map(relabel)
     merged["klaster"] = merged["klaster_km"].map(relabel)
 
-    # Profil pogody (jednostki fizyczne) i z-score średnich do nazw i heatmapy
     phys = weather.groupby("klaster")[FEATURES].mean()
     z = pd.DataFrame(X, columns=FEATURES).assign(klaster=weather["klaster"].values).groupby("klaster").mean()
     weather["miesiac"] = pd.to_datetime(weather["data"]).dt.month
@@ -112,15 +101,12 @@ def profile(weather: pd.DataFrame, days: pd.DataFrame, X: np.ndarray, k: int) ->
         })
     prof = pd.DataFrame(rows)
 
-    # Rozkład miesięcy: udział klastrów w dniach pogodowych danego miesiąca
     months = (pd.crosstab(weather["miesiac"], weather["klaster"], normalize="index") * 100).round(1)
-    # Klaster × klasa jakości (dni miasto) i zgodność podziałów (ARI)
     with_class = merged.dropna(subset=["klasa"])
     cross = pd.crosstab(with_class["klaster"], with_class["klasa"]).reindex(columns=config.PM10_CLASS_LABELS, fill_value=0)
     ari = adjusted_rand_score(with_class["klasa"], with_class["klaster"])
     # Udział stacji w klastrach – kontrola, czy klastry nie odpowiadają stacjom
     stations = (pd.crosstab(weather["klaster"], weather["imgw_kod"], normalize="columns") * 100).round(1)
-    # Kwartyle PM w klastrach – do wykresu pudełkowego na stronie
     quart = {}
     for col in ["pm10", "pm25"]:
         q = merged.groupby("klaster")[col].quantile([0.1, 0.25, 0.5, 0.75, 0.9]).unstack().round(1)
@@ -142,6 +128,10 @@ def run() -> dict:
     print("  " + ", ".join(f"k={r.k}: {r.silhouette:.3f}" for r in scores.itertuples()))
 
     prof = res["profile"]
+    pca = PCA(n_components=2, random_state=RANDOM_STATE)
+    P = pca.fit_transform(X)
+    ev = pca.explained_variance_ratio_ * 100
+    klaster_arr = res["weather"]["klaster"].values
     report = {
         "metoda": {"obiekt": "dzień pogodowy (data × stacja IMGW)", "n": len(weather),
                    "cechy": [FEATURE_NAMES[f] for f in FEATURES],
@@ -155,14 +145,13 @@ def run() -> dict:
         "ari": res["ari"],
         "udzial_stacji_pct": {int(c): {int(s): v for s, v in row.items()} for c, row in res["stations"].iterrows()},
         "kwartyle_pm": res["quartiles"],
+        "pca": {
+            "wariancja": [round(float(ev[0]), 1), round(float(ev[1]), 1)],
+            "punkty": {int(c): P[klaster_arr == c].round(2).tolist() for c in sorted(set(klaster_arr))},
+        },
     }
     config.DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
     (config.DATA_PROCESSED / "klastry_raport.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    with sqlite3.connect(config.DB_PATH) as con:
-        res["weather"][["data", "imgw_kod", "klaster"]].to_sql("klastry_dni", con, if_exists="replace", index=False)
-        prof.to_sql("klastry_profil", con, if_exists="replace", index=False)
-    con.close()
 
     plot_k(scores, k)
     plot_profile(res, FEATURE_NAMES)

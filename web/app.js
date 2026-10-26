@@ -1,11 +1,3 @@
-/* TK05 – strona z wynikami (Chart.js + Leaflet, dane z data/*.json).
- *
- * Układ pliku:
- *   stan strony → pomocnicze → wczytanie danych → Chart.js i wtyczki → nawigacja między panelami
- *   → panele w kolejności menu: A (akwizycja), P (przygotowanie), E (eksploracja), 1 (sezony),
- *     2 (pogoda), 3 (ranking i mapa), 4 (klasy dni), 5 (typy dni) → pasek boczny → przełączniki → start.
- * Każdy panel ma funkcje render…(), które wpisują dane z DANE.<plik> do elementów strony.
- */
 "use strict";
 
 // --- Stan strony ----------------------------------------------------------------
@@ -31,7 +23,6 @@ const KOLOR_CIEMNY = { "#2a78d6": "#3987e5", "#eb6834": "#d95926", "#1baf7a": "#
 // --- Pomocnicze -------------------------------------------------------------------
 const $ = (sel) => document.querySelector(sel);
 const css = (nazwa) => getComputedStyle(document.documentElement).getPropertyValue(nazwa).trim();
-const ciemny = () => matchMedia("(prefers-color-scheme: dark)").matches;
 
 function fmt(v, cyfry = 1) {
   if (v === null || v === undefined || Number.isNaN(v)) return "–";
@@ -39,7 +30,7 @@ function fmt(v, cyfry = 1) {
 }
 const fmtInt = (v) => (v == null ? "–" : Math.round(v).toLocaleString("pl-PL"));
 const fmtR = (r) => (r == null ? "–" : (r > 0 ? "+" : r < 0 ? "−" : "") + fmt(Math.abs(r), 2));
-const kolorWMotywie = (hex) => (ciemny() ? (KOLOR_CIEMNY[hex] || hex) : hex);
+const kolorWMotywie = (hex) => KOLOR_CIEMNY[hex] || hex;
 const kolorMiasta = (miasto) => kolorWMotywie(DANE.meta.miasta.find((x) => x.miasto === miasto).kolor);
 const listaMiast = () => DANE.meta.miasta.map((m) => m.miasto);
 const znacznikKlasy = (e) => `<span class="znacznik" style="--kolor:var(${KOLOR_KLASY[e]})">${e}</span>`;
@@ -98,11 +89,11 @@ function ustawChartJs() {
   Chart.defaults.plugins.legend.position = "bottom";
   Chart.defaults.plugins.legend.labels.boxWidth = 12;
   Chart.defaults.plugins.legend.labels.boxHeight = 12;
-  Chart.defaults.plugins.tooltip.backgroundColor = ciemny() ? "#15304b" : "#0c2a47";
+  Chart.defaults.plugins.tooltip.backgroundColor = "#15304b";
   Chart.defaults.plugins.tooltip.padding = 10;
   Chart.defaults.plugins.tooltip.cornerRadius = 0;
   Chart.defaults.maintainAspectRatio = false;
-  Chart.defaults.animation = false;  // bez animacji wykresów
+  Chart.defaults.animation = false;
 }
 
 function nowyWykres(id, konfiguracja) {
@@ -166,7 +157,7 @@ const linieRozkladu = {
 const PANELE = ["akwizycja", "przygotowanie", "eksploracja", "sezony", "pogoda", "ranking", "klasy", "typy"];
 let mapaGotowa = false;
 // Panele, w których przełącznik PM10 / PM2.5 coś zmienia (A, P i klasy dni liczone z PM10 – nie)
-const PANELE_Z_WSKAZNIKIEM = ["eksploracja", "sezony", "pogoda", "ranking", "typy"];
+const PANELE_Z_WSKAZNIKIEM = ["sezony", "pogoda", "ranking", "typy"];
 const panelZAdresu = () => (PANELE.includes(location.hash.slice(1)) ? location.hash.slice(1) : PANELE[0]);
 
 function pokazPanel(id) {
@@ -195,9 +186,7 @@ const GRUPY_ZRODEL = [["TK02", "Pliki z archiwów"], ["TK03", "Zapytania do API"
 const GROT = '<svg class="grot" viewBox="0 0 32 12" aria-hidden="true" focusable="false">' +
   '<path class="g-linia" d="M0 6h24"/><path class="g-grot" d="M21 0l11 6-11 6z"/></svg>';
 
-// Krótki znacznik formatu (XLSX/CSV/JSON-LD/JSON) – z eksportu, a w starszych danych z opisu formatu
 const znacznikFormatu = (z) => z.znacznik ?? z.format.match(/JSON-LD|JSON|XLSX|CSV/)?.[0] ?? "plik";
-const rozmiarPliku = (kB) => (kB >= 1024 ? `${fmt(kB / 1024)} MB` : `${fmtInt(kB)} kB`);
 const dataPobrania = (t) => `${t.slice(8, 10)}.${t.slice(5, 7)}.${t.slice(0, 4)} ${t.slice(11, 16)}`;
 // „GIOŚ – archiwum pomiarów” → ["GIOŚ", "archiwum pomiarów"] (instytucja pogrubiona w zakładce)
 const czesciNazwy = (nazwa) => { const [kto, ...co] = nazwa.split(" – "); return [kto, co.join(" – ")]; };
@@ -246,7 +235,6 @@ function schematEtapowHtml(etapy) {
   }).join("");
 }
 
-// Podgląd: zakładka (format + nazwa) i panel (opis, próbka surowych danych, pobrane pliki) dla każdego źródła
 function podgladHtml(zrodla) {
   const zakladki = zrodla.map((z, i) => {
     const [kto, co] = czesciNazwy(z.nazwa);
@@ -258,27 +246,13 @@ function podgladHtml(zrodla) {
     <div class="podglad-panel" role="tabpanel" id="podglad-${esc(z.id)}" aria-labelledby="zakladka-${esc(z.id)}" tabindex="0"${i ? " hidden" : ""}>
       <dl class="podglad-opis">
         <dt>Format</dt><dd>${esc(z.format)}</dd>
-        <dt>Pobieramy</dt><dd>${esc(z.co)}</dd>
-        <dt>Adres</dt><dd><a href="${esc(z.url)}" target="_blank" rel="noopener">${esc(z.url)}</a></dd>
       </dl>
-      <div class="podglad-siatka">
-        <div class="podglad-probka">
-          <h3 class="podglad-naglowek">Surowe dane <span>${esc(z.probka.opis)}</span></h3>
-          ${probkaHtml(z.probka)}
-        </div>
-        <div class="podglad-pliki">
-          <h3 class="podglad-naglowek">Pobrane pliki <span>${z.pliki.length}</span></h3>
-          ${z.pliki.length ? `<div class="tabela-wrap"><table class="pliki">
-            <thead><tr><th scope="col">Plik</th><th scope="col">Rozmiar</th><th scope="col">Pobrano</th></tr></thead>
-            <tbody>${z.pliki.map((f) => `<tr><td>${esc(f.nazwa)}</td><td>${rozmiarPliku(f.kB)}</td><td>${dataPobrania(f.pobrano)}</td></tr>`).join("")}</tbody>
-          </table></div>` : '<p class="przypis">Brak pobranych plików.</p>'}
-        </div>
-      </div>
+      <h3 class="podglad-naglowek">Surowe dane <span>${esc(z.probka.opis)}</span></h3>
+      ${probkaHtml(z.probka)}
     </div>`).join("");
   return [zakladki, panele];
 }
 
-// Wybór źródła: zakładka, jej panel i podświetlony węzeł na schemacie
 function wybierzZrodlo(id, { fokus = false, przewin = false } = {}) {
   document.querySelectorAll("#zakladki-zrodel [role=tab]").forEach((t) => {
     const wybrana = t.dataset.zrodlo === id;
@@ -301,7 +275,6 @@ function renderAkwizycja() {
   $("#schemat-etapy").innerHTML = schematEtapowHtml(etapy);
   [$("#zakladki-zrodel").innerHTML, $("#panele-zrodel").innerHTML] = podgladHtml(A.zrodla);
 
-  // Kliknięcie węzła na schemacie przełącza zakładkę podglądu
   $("#schemat-zrodla").addEventListener("click", (e) => {
     const b = e.target.closest(".wezel-nazwa");
     if (b) wybierzZrodlo(b.closest(".wezel").dataset.zrodlo, { przewin: true });
@@ -363,16 +336,6 @@ function lejekHtml(P) {
     </ol>`;
 }
 
-function wybierzZakladkeP(zakladka, fokus = false) {
-  document.querySelectorAll("#zakladki-p [role=tab]").forEach((t) => {
-    const wybrana = t === zakladka;
-    t.setAttribute("aria-selected", wybrana);
-    t.tabIndex = wybrana ? 0 : -1;
-    $(`#${t.getAttribute("aria-controls")}`).hidden = !wybrana;
-  });
-  if (fokus) zakladka.focus();
-}
-
 function renderPrzygotowanie() {
   const P = DANE.przygotowanie;
   const F = P.filtracja;
@@ -380,17 +343,10 @@ function renderPrzygotowanie() {
   $("#p-lejek").textContent = `${pierwszy[1]} ${pierwszy[0]} → ${ostatni[1]} dni-miasto do analizy`;
   $("#lejek").innerHTML = lejekHtml(P);
 
-  // Kroki: numer, nazwa, jedna linia, wynik
-  $("#lista-krokow").innerHTML = P.kroki.map(([nazwa, co, wynik], i) =>
+  $("#lista-krokow").innerHTML = P.kroki.map(([nazwa, co], i) =>
     `<li><span class="kp-nr">${i + 1}</span><b class="kp-nazwa">${esc(nazwa)}</b>` +
-    `<span class="kp-co">${esc(co)}</span><span class="kp-wynik">${esc(wynik)}</span></li>`).join("");
+    `<span class="kp-co">${esc(co)}</span></li>`).join("");
 
-  $("#tabela-bazy").innerHTML =
-    `<thead><tr><th scope="col">Tabela / widok</th><th scope="col">Typ</th><th scope="col">Wiersze</th></tr></thead><tbody>` +
-    P.tabele.map((t) => `<tr><td><code>${esc(t.nazwa)}</code></td><td>${t.typ === "view" ? "widok" : "tabela"}</td>` +
-      `<td>${fmtInt(t.wiersze)}</td></tr>`).join("") + "</tbody>";
-
-  // Kontrola jakości: walidacja zakresu i błędy pomiarowe (usunięte / oznaczone, ale zostawione)
   const K = P.kontrola;
   const nazwaWsk = (w) => (w === "PM25" ? "PM2.5" : w);
   const prog = fmtInt(K.prog), x = fmtInt(K.krotnosc);
@@ -418,20 +374,13 @@ function renderPrzygotowanie() {
     `Usunięto ${fmtInt(suma("usuniete"))}, oznaczono ${fmtInt(suma("odstaje_od_innych") + suma("skok_w_czasie"))}. ` +
     `Wartości niemożliwych (< 0, PM2.5 > PM10): ${fmtInt(niemozliwe)}.`;
 
-  // Filtracja: tabela braków (szczegóły) i wykres powodów (PM10, PM2.5, pogoda – najgorsza zmienna pogodowa)
-  const ZMIENNE_F = [["pm10", "PM10"], ["pm25", "PM2.5"], ["temp_sr", "temperatura"], ["opad", "opad"],
-                     ["wiatr_sr", "wiatr"], ["wilgotnosc", "wilgotność"], ["cisnienie", "ciśnienie"]];
+  // Filtracja: wykres powodów (PM10, PM2.5, pogoda – najgorsza zmienna pogodowa)
+  const POGODA_F = ["temp_sr", "opad", "wiatr_sr", "wilgotnosc", "cisnienie"];
   const brak = (m, z) => F.braki.find((b) => b.miasto === m && b.zmienna === z)?.dni ?? 0;
-  $("#tabela-filtracja").innerHTML =
-    `<thead><tr><th scope="col">Dni z brakiem</th>${ZMIENNE_F.map(([, n]) => `<th scope="col">${n}</th>`).join("")}</tr></thead><tbody>` +
-    listaMiast().map((m) => `<tr><td>${esc(m)}</td>${ZMIENNE_F.map(([z]) => {
-      const n = brak(m, z);
-      return n ? `<td class="brak-dni">${fmtInt(n)}</td>` : '<td class="brak">–</td>';
-    }).join("")}</tr>`).join("") + "</tbody>";
 
   $("#p-filtracja").textContent = `dzień zostaje, gdy wszystkie ${listaMiast().length} miasta mają PM i pogodę · dni z brakiem`;
   const POWODY = [["pm10", "PM10"], ["pm25", "PM2.5"], ["pogoda", "pogoda"]];
-  const ilePowod = (m, z) => (z === "pogoda" ? Math.max(0, ...ZMIENNE_F.slice(2).map(([k]) => brak(m, k))) : brak(m, z));
+  const ilePowod = (m, z) => (z === "pogoda" ? Math.max(0, ...POGODA_F.map((k) => brak(m, k))) : brak(m, z));
   const maxB = Math.max(1, ...listaMiast().flatMap((m) => POWODY.map(([z]) => ilePowod(m, z))));
   $("#wykres-brakow").innerHTML =
     `<p class="braki-legenda" aria-hidden="true">${POWODY.map(([z, n]) => `<span><i class="b-${z}"></i>${n}</span>`).join("")}</p>` +
@@ -447,18 +396,6 @@ function renderPrzygotowanie() {
     `Odpadło <b>${fmtInt(F.dni_kalendarzowe - F.dni_kompletne)}</b> z ${fmtInt(F.dni_kalendarzowe)} dni, zostało ` +
     `<b>${fmtInt(F.dni_kompletne)}</b> (${fmt(100 * F.dni_kompletne / F.dni_kalendarzowe, 0)}%). ` +
     `Najwięcej braków: ${esc(najw[1])}, ${esc(najw[0])} (${fmtInt(najw[2])} dni).`;
-
-  // Zakładki szczegółów: kliknięcie, strzałki (z zawijaniem), Home i End
-  const lista = $("#zakladki-p");
-  lista.addEventListener("click", (e) => { const t = e.target.closest("[role=tab]"); if (t) wybierzZakladkeP(t); });
-  lista.addEventListener("keydown", (e) => {
-    const zakladki = [...lista.querySelectorAll("[role=tab]")];
-    const i = zakladki.indexOf(document.activeElement);
-    const cel = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: zakladki.length - 1 }[e.key];
-    if (i < 0 || cel === undefined) return;
-    e.preventDefault();
-    wybierzZakladkeP(zakladki[(cel + zakladki.length) % zakladki.length], true);
-  });
 }
 
 // Przykład jednej doby: 24 wartości godzinowe przed i po kontroli, średnia dobowa przed i po
@@ -505,21 +442,7 @@ const statEda = (z) => DANE.eksploracja.statystyki.find((s) => s.zmienna === z);
 
 function renderEksploracja() {
   const S = DANE.eksploracja.statystyki;
-  const pm10 = statEda("PM10"), opad = statEda("opad"), cisn = statEda("ciśnienie"),
-    temp = statEda("temperatura"), wiatr = statEda("prędkość wiatru");
-  $("#kafle-eda").innerHTML = `
-    <div class="kafel wyrozniony"><div class="k-etykieta">PM10: średnia vs mediana [µg/m³]</div>
-      <div class="k-wartosc">${fmt(pm10.srednia)} vs ${fmt(pm10.mediana)}</div>
-      <div class="k-opis">średnia jest wyższa, bo podbijają ją rzadkie dni ze smogiem</div></div>
-    <div class="kafel"><div class="k-etykieta">Skośność PM10 po logarytmie</div>
-      <div class="k-wartosc">${fmt(pm10.skosnosc_po_log, 2)}</div>
-      <div class="k-opis">przed: ${fmt(pm10.skosnosc, 2)} – po logarytmie rozkład jest prawie symetryczny</div></div>
-    <div class="kafel"><div class="k-etykieta">Opad: dni bez opadu</div>
-      <div class="k-wartosc">${fmt(opad.udzial_zer_pct, 0)}%</div>
-      <div class="k-opis">mediana ${fmt(opad.mediana)} mm, średnia ${fmt(opad.srednia)} mm</div></div>
-    <div class="kafel"><div class="k-etykieta">Ciśnienie: odchylenie standardowe</div>
-      <div class="k-wartosc">${fmt(cisn.odch_std)} hPa</div>
-      <div class="k-opis">na jednej stacji tylko ${fmt(cisn.odch_std_w_grupie)} – resztę daje różna wysokość stacji</div></div>`;
+  const pm10 = statEda("PM10"), opad = statEda("opad"), temp = statEda("temperatura"), wiatr = statEda("prędkość wiatru");
 
   const dominanta = (s) => { const d = Number.isInteger(s.dominanta_do - s.dominanta_od) ? 0 : 1; return `${fmt(s.dominanta_od, d)}–${fmt(s.dominanta_do, d)}`; };
   $("#p-opisowe").textContent = "typowa wartość, rozrzut i kształt rozkładu każdej zmiennej";
@@ -570,30 +493,11 @@ function renderEksploracja() {
     `<button type="button" role="radio" data-wartosc="${z}" aria-checked="${z === STAN.zmiennaEda}" title="${z}">${skrot}</button>`).join("");
 }
 
-// Testy istotności dla pytań 1–3 (wiersze bez wskaźnika – korelacje – widoczne zawsze)
+// p-wartość do zdań pod wykresami (testy liczy src/significance.py)
 const fmtP = (p) => (p == null ? "–" : p < 0.001 ? "&lt; 0,001" : fmt(p, 3));
-function renderTesty() {
-  const E = DANE.eksploracja;
-  const wiersze = E.testy.filter((t) => t.wskaznik == null || t.wskaznik === STAN.wskaznik)
-    .sort((a, b) => a.pytanie - b.pytanie);
-  $("#p-testy").textContent = `czy wyniki pytań 1–3 mogą być przypadkiem · wskaźnik: ${STAN.wskaznik}`;
-  $("#tabela-testy").innerHTML =
-    `<thead><tr><th scope="col">Pyt.</th><th scope="col">Test</th><th scope="col">Hipoteza zerowa (H0)</th><th scope="col">Dane</th>` +
-    `<th scope="col">Statystyka</th><th scope="col">p</th><th scope="col">Wielkość efektu</th><th scope="col">Wniosek</th></tr></thead><tbody>` +
-    wiersze.map((t) => {
-      const efekt = t.efekt_nazwa.includes("pary") ? fmtInt(t.efekt) : t.efekt_nazwa.startsWith("r ") ? fmtR(t.efekt)
-        : fmt(t.efekt, t.efekt_nazwa.startsWith("różnica") ? 1 : 2);
-      const wniosek = t.wniosek === "odrzucamy H0" ? "<b>odrzucamy H0</b>" : t.wniosek === "zob. uwagi" ? "" : esc(t.wniosek);
-      return `<tr><td>${t.pytanie}</td><td>${esc(t.test)}</td><td>${esc(t.h0)}</td><td>${esc(t.dane)}</td>` +
-        `<td>${esc(t.statystyka)}</td><td class="${t.p != null && t.p >= 0.05 ? "odbiega" : ""}">${fmtP(t.p)}</td>` +
-        `<td>${esc(t.efekt_nazwa)}: ${efekt}</td>` +
-        `<td>${wniosek}${t.uwagi ? `<div class="jedn">${esc(t.uwagi)}</div>` : ""}</td></tr>`;
-    }).join("") + "</tbody>";
-  const ak = E.autokorelacja.filter((a) => a.wskaznik === STAN.wskaznik).map((a) => a.r_lag1);
-  $("#przypis-testy").textContent =
-    `p < 0,05 = raczej nie przypadek. Kolejne dni są podobne (autokorelacja ${fmt(Math.min(...ak), 2)}–${fmt(Math.max(...ak), 2)}), ` +
-    `dlatego testy powtórzono na średnich miesięcznych.`;
-}
+const testPytania = (pytanie, fraza) =>
+  DANE.eksploracja.testy.find((t) => t.pytanie === pytanie && t.wskaznik === STAN.wskaznik && t.test.includes(fraza));
+const zapisP = (p) => (p < 0.001 ? "p &lt; 0,001" : `p = ${fmt(p, 3)}`);
 
 function renderHistogram() {
   const s = statEda(STAN.zmiennaEda);
@@ -700,6 +604,10 @@ function renderSezonowy() {
       scales: { x: { grid: { display: false } }, y: { beginAtZero: true, title: { display: true, text: "µg/m³" } } },
     },
   });
+  const t = testPytania(1, "dni");
+  $("#przypis-sezony").innerHTML =
+    `Różnica zima–lato ${t.p < 0.05 ? "jest" : "nie jest"} istotna: test U Manna–Whitneya, ${zapisP(t.p)}. ` +
+    `Losowy dzień zimowy ma więcej pyłu niż letni z prawdopodobieństwem ${fmt(t.efekt, 2)}.`;
 }
 
 function renderMiesieczny() {
@@ -711,7 +619,7 @@ function renderMiesieczny() {
   }));
   // Średnia ze wszystkich dni wszystkich miast – gruba czerwona linia z kropkami, na wierzchu,
   // z obwódką w kolorze tła (osobna szersza linia pod spodem), żeby odcinała się od linii miast
-  const czerwony = ciemny() ? "#ff5a5a" : "#d92b2b";
+  const czerwony = "#ff5a5a";
   const srednia = dane["Wszystkie miasta"][pole];
   zbiory.push(
     { label: "", obwodka: true, data: srednia, borderColor: css("--surface-1"), borderWidth: 8, pointRadius: 0,
@@ -754,7 +662,6 @@ function renderMiesieczny() {
 
 // --- Panel 2: pogoda -------------------------------------------------------------------------
 function renderKorelacje() {
-  // Macierz korelacji Spearmana (odporna na skośny rozkład stężeń), jak na wykresie korelacje.png
   const wiersze = DANE.korelacje.macierz.filter((x) => x.zakres === STAN.zakres);
   const para = (a, b) => wiersze.find((x) => x.zmienna_a === a && x.zmienna_b === b);
   const r = (a, b) => para(a, b).r;
@@ -773,7 +680,6 @@ function renderKorelacje() {
   }).join("")}</tr>`).join("");
   $("#macierz-korelacji").innerHTML = `${naglowek}<tbody>${cialo}</tbody>`;
 
-  // Najsilniejszy związek wybranego wskaźnika z pogodą
   const pogoda = ZMIENNE.slice(2).map(([z]) => z);
   const zPylem = pogoda.map((z) => ({ opis: z, r: r(STAN.wskaznik, z) }))
     .reduce((x, y) => (Math.abs(y.r) > Math.abs(x.r) ? y : x));
@@ -821,13 +727,11 @@ function zbudujMape() {
     maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(mapa);
 
-  // Pozostałe stacje województwa (z API GIOŚ) – szare, w tle
   for (const s of DANE.stacje.inne_stacje) {
     L.circleMarker([s.lat, s.lon], { radius: 5, color: "#ffffff", weight: 1.5, fillColor: "#8c8b85", fillOpacity: 0.9 })
       .bindPopup(`<strong>${s.nazwa}</strong><br>${s.miasto}<br><span style="opacity:.7">stacja spoza próby badawczej</span>`)
       .addTo(mapa);
   }
-  // Stacje miast – w kolorach miast
   for (const s of DANE.stacje.stacje) {
     L.circleMarker([s.lat, s.lon], { radius: 10, color: "#ffffff", weight: 2, fillColor: s.kolor, fillOpacity: 0.95 })
       .bindPopup(opisStacji(s)).bindTooltip(s.miasto, { direction: "top", offset: [0, -8] }).addTo(mapa);
@@ -901,6 +805,57 @@ function renderTeraz() {
     "kółko = ostatnie 24 h. Ostatnie 24 h to nie doba kalendarzowa, więc porównanie jest orientacyjne.";
 }
 
+// Przycisk „Odśwież”: nowe odczyty pobiera lokalny serwer (src/main.py, /api/biezace), bo API GIOŚ nie przyjmuje
+// zapytań z przeglądarki. Liczymy tak jak current_vs_history w src/analyze.py: średnia z ostatnich 24 h
+// (min. tyle godzin co dla doby) i odsetek dni tego samego miesiąca z historii z niższą średnią.
+const czasZTekstu = (t) => new Date(t.replace(" ", "T"));
+const mediana = (v) => { const s = [...v].sort((a, b) => a - b); const i = s.length >> 1; return s.length % 2 ? s[i] : (s[i - 1] + s[i]) / 2; };
+
+function wierszeTeraz(pomiary, T) {
+  const { granice, klasy } = DANE.meta.progi_pm10;
+  const wiersze = [];
+  for (const [miasto, wskazniki] of Object.entries(pomiary)) {
+    const koniec = Object.values(wskazniki).flat().map(([t]) => t).sort().at(-1);  // tekst czasu sortuje się chronologicznie
+    const poczatek = czasZTekstu(koniec).getTime() - 24 * 3600e3;
+    for (const [kod, pole] of Object.entries(POLE)) {
+      const okno = (wskazniki[kod] ?? []).filter(([t]) => czasZTekstu(t).getTime() > poczatek).map(([, v]) => v);
+      if (okno.length < DANE.przygotowanie.min_godzin) continue;
+      const srednia = okno.reduce((a, b) => a + b, 0) / okno.length;
+      const historia = T.historia[miasto]?.[pole] ?? [];
+      wiersze.push({
+        miasto, wskaznik: pole, do: koniec, srednia_24h: srednia, dni_historia: historia.length,
+        mediana_historia: mediana(historia), nizej_pct: (100 * historia.filter((v) => v < srednia).length) / historia.length,
+        klasa: pole === "pm10" ? klasy[granice.filter((g) => srednia > g).length] : null,
+      });
+    }
+  }
+  return wiersze;
+}
+
+async function odswiezTeraz() {
+  const przycisk = $("#odswiez-teraz"), stan = $("#stan-teraz");
+  przycisk.disabled = true;
+  stan.textContent = "pobieranie z API GIOŚ…";
+  try {
+    const odp = await fetch("api/biezace", { cache: "no-store" });
+    if (odp.status === 404) throw new Error("odświeżanie działa w oknie aplikacji (python -m src.main)");
+    const dane = await odp.json();
+    if (!odp.ok) throw new Error(dane.blad ?? `HTTP ${odp.status}`);
+    const T = DANE.stacje.teraz;
+    const wiersze = wierszeTeraz(dane, T);
+    if (!wiersze.length) throw new Error("API nie zwróciło pełnych 24 godzin pomiarów");
+    T.wiersze = wiersze;
+    renderTeraz();
+    const miesiacTeraz = czasZTekstu(wiersze[0].do).getMonth() + 1;
+    stan.textContent = `odświeżono ${new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}` +
+      (miesiacTeraz === T.miesiac ? "" : " · historia jest dla poprzedniego miesiąca – przelicz projekt (--przelicz)");
+  } catch (err) {
+    stan.textContent = `Nie udało się: ${err.message}`;
+  } finally {
+    przycisk.disabled = false;
+  }
+}
+
 // --- Panel 4: klasy jakości dnia --------------------------------------------------------
 const MIESIACE_PELNE = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień",
   "październik", "listopad", "grudzień"];
@@ -931,7 +886,6 @@ function renderKlasy() {
       <div class="k-wartosc">${MIESIACE_PELNE[Number(najgorszyMiesiac.grupa) - 1]}</div>
       <div class="k-opis">${fmt(najgorszyMiesiac.udzial_pct)}% dni złych</div></div>`;
 
-  // Udział klas w miesiącach – słupki do 100%
   nowyWykres("wykres-klasy", {
     type: "bar",
     data: {
@@ -949,7 +903,6 @@ function renderKlasy() {
     },
   });
 
-  // Tabela: miasta, sezony i wszystkie dni
   const grupy = [...listaMiast().map((m) => ["miasto", m, m]),
     ["sezon", "grzewczy", "sezon grzewczy"], ["sezon", "letni", "sezon letni"], ["wszystkie", "wszystkie dni", "wszystkie dni"]];
   $("#tabela-klasy").innerHTML =
@@ -987,7 +940,6 @@ function renderKlastry() {
       <div class="k-wartosc">k = ${K.k}</div>
       <div class="k-opis">tyle grup daje najlepszy podział (silhouette ${fmt(silhouette, 2)})</div></div>`;
 
-  // Tabela profili typów
   const kolumny = [
     ["Typ dnia", (p) => `<span class="miasto"><i class="kropka" style="background:${kolor(p)}"></i>${p.klaster}. ${p.nazwa}</span>`],
     ["Dni", (p) => fmtInt(p.n_dni_pogodowych)],
@@ -1014,7 +966,7 @@ function renderKlastry() {
       labels: prof.map((p) => [`${p.klaster}. ${p.nazwa.split(", ")[0]},`, p.nazwa.split(", ")[1] || ""]),
       datasets: [
         { label: "10–90 percentyl", data: prof.map((p) => [q[p.klaster][0], q[p.klaster][4]]),
-          backgroundColor: kolory.map((k) => zPrzezroczystoscia(k, ciemny() ? 0.5 : 0.3)), barPercentage: 0.22, grouped: false, order: 3 },
+          backgroundColor: kolory.map((k) => zPrzezroczystoscia(k, 0.5)), barPercentage: 0.22, grouped: false, order: 3 },
         { label: "kwartyle 25–75%", data: prof.map((p) => [q[p.klaster][1], q[p.klaster][3]]),
           backgroundColor: kolory, borderSkipped: false, barPercentage: 0.6, grouped: false, order: 2 },
         { type: "line", label: "mediana", data: prof.map((p) => q[p.klaster][2]), showLine: false,
@@ -1034,7 +986,6 @@ function renderKlastry() {
     plugins: STAN.wskaznik === "PM10" ? [liniaNormy] : [],
   });
 
-  // Udział typów w dniach każdego miesiąca (słupki skumulowane do 100%)
   nowyWykres("wykres-klastry-miesiace", {
     type: "bar",
     data: {
@@ -1049,10 +1000,35 @@ function renderKlastry() {
       scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, max: 100, ticks: { callback: (v) => `${v}%` } } },
     },
   });
+
+  const [ev1, ev2] = K.pca.wariancja;
+  // Obie osie PCA są w tych samych jednostkach, więc mają tę samą skalę (inaczej chmura wygląda na spłaszczoną)
+  const wszystkie = Object.values(K.pca.punkty).flat();
+  const zakres = (i) => [Math.floor(Math.min(...wszystkie.map((p) => p[i]))), Math.ceil(Math.max(...wszystkie.map((p) => p[i])))];
+  const [[x0, x1], [y0, y1]] = [zakres(0), zakres(1)];
+  $("#p-klastry-pca").textContent = `każdy punkt to jeden dzień na jednej stacji IMGW · kolor = typ dnia · ${fmt(ev1, 0)}% + ${fmt(ev2, 0)}% wariancji w tym rzucie`;
+  nowyWykres("wykres-klastry-pca", {
+    type: "scatter",
+    data: {
+      datasets: prof.map((p) => ({
+        label: `${p.klaster}. ${p.nazwa}`,
+        data: K.pca.punkty[p.klaster].map(([x, y]) => ({ x, y })),
+        backgroundColor: zPrzezroczystoscia(kolor(p), 0.45),
+        pointRadius: 3, pointHoverRadius: 5,
+      })),
+    },
+    options: {
+      maintainAspectRatio: true, aspectRatio: (x1 - x0) / (y1 - y0),
+      plugins: { tooltip: { callbacks: { label: (c) => `${c.dataset.label}: (${fmt(c.raw.x, 2)}, ${fmt(c.raw.y, 2)})` } } },
+      scales: {
+        x: { min: x0, max: x1, ticks: { stepSize: 1 }, title: { display: true, text: `PC1 (${fmt(ev1, 0)}%)` } },
+        y: { min: y0, max: y1, ticks: { stepSize: 1 }, title: { display: true, text: `PC2 (${fmt(ev2, 0)}%)` } },
+      },
+    },
+  });
 }
 
 // --- Pasek boczny i dane wspólne -------------------------------------------------------------
-// Progi klas (panel 4), data wygenerowania i zakres lat (pasek boczny)
 function renderMeta() {
   const m = DANE.meta;
   const [a, b] = m.progi_pm10.granice;
@@ -1092,15 +1068,13 @@ function renderWszystko() {
   renderAkwizycja();
   renderPrzygotowanie();
   renderEksploracja();
-  renderTesty();
   podepnijPrzelacznik("#wybor-wskaznik", "wskaznik", () => {
-    renderKafle(); renderSezonowy(); renderMiesieczny(); renderKorelacje(); renderTeraz(); renderKlastry(); renderTesty();
+    renderKafle(); renderSezonowy(); renderMiesieczny(); renderKorelacje(); renderTeraz(); renderKlastry();
   });
   podepnijPrzelacznik("#wybor-zakres", "zakres", renderKorelacje);
   podepnijPrzelacznik("#wybor-os", "os", renderRozrzut);
   podepnijPrzelacznik("#wybor-zmienna", "zmiennaEda", renderHistogram);
-  // Zmiana motywu systemu → wykresy w nowych kolorach
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderWszystko);
+  $("#odswiez-teraz").addEventListener("click", odswiezTeraz);
   renderWszystko();
   // Linki menu zmieniają adres (#panel); przyciski Wstecz/Dalej też przełączają panele
   window.addEventListener("hashchange", () => pokazPanel(panelZAdresu()));

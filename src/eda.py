@@ -1,13 +1,3 @@
-"""TK04 – eksploracja danych (EDA): jak wyglądają dane, zanim wybierzemy metody analizy.
-
-Dla każdej zmiennej liczymy:
-- miary położenia: średnia, mediana, dominanta (najczęstszy przedział histogramu),
-- miary rozrzutu: odchylenie standardowe, wariancja, współczynnik zmienności,
-- kształt rozkładu: skośność, kurtoza i słowna ocena,
-- regułę 68–95–99,7: ile danych leży w ±1σ, ±2σ, ±3σ od średniej.
-
-Wyniki: tabele wyniki_opisowe, wyniki_histogramy, wyniki_regula_3sigma i wykres rozklady.png.
-"""
 import sqlite3
 
 import numpy as np
@@ -66,7 +56,6 @@ def descriptive_stats(data: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, pd.D
             "odch_std": values.std(), "wariancja": values.var(),
             "wsp_zmiennosci_pct": 100 * values.std() / values.mean() if ratio_scale else np.nan,
             "skosnosc": skew, "kurtoza": kurt, "ksztalt": distribution_shape(skew, kurt),
-            # Skośność po logarytmie log(1 + x) – czy przekształcenie usuwa skośność prawostronną
             "skosnosc_po_log": np.log1p(values).skew() if skew >= 1 and values.min() >= 0 else np.nan,
             "udzial_zer_pct": 100 * (values == 0).mean(),
             # Odchylenie w obrębie jednego miasta / stacji: ile rozrzutu to różnice między miejscami
@@ -77,17 +66,17 @@ def descriptive_stats(data: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, pd.D
     return pd.DataFrame(rows), pd.DataFrame(hist)
 
 
-def sigma_rule(data: dict[str, pd.DataFrame], stats: pd.DataFrame) -> pd.DataFrame:
+def sigma_rule(data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Reguła 68–95–99,7: odsetek danych w ±1σ, ±2σ, ±3σ od średniej.
-    Dla zmiennych mocno skośnych także po przekształceniu log(1 + x)."""
+    Dla pyłu także po przekształceniu log(1 + x) – po nim rozkład jest prawie normalny."""
     rows = []
     for col, (name, *_) in VARIABLES.items():
         values = data[col][col]
         variants = [("bez zmian", values)]
-        if not pd.isna(stats.loc[stats["zmienna"] == name, "skosnosc_po_log"].iloc[0]):
+        if col in config.POLLUTANTS:
             variants.append(("log(1 + x)", np.log1p(values)))
         for transform, v in variants:
-            distance = (v - v.mean()).abs() / v.std()  # odległość od średniej w odchyleniach standardowych
+            distance = (v - v.mean()).abs() / v.std()
             rows.append({"zmienna": name, "przeksztalcenie": transform,
                          **{f"w_{k}_sigma_pct": 100 * (distance <= k).mean() for k in (1, 2, 3)},
                          "poza_3_sigma": int((distance > 3).sum()), "n": len(v)})
@@ -101,7 +90,7 @@ def run() -> None:
         results = {
             "wyniki_opisowe": stats,
             "wyniki_histogramy": hist,
-            "wyniki_regula_3sigma": sigma_rule(data, stats),
+            "wyniki_regula_3sigma": sigma_rule(data),
         }
         for name, df in results.items():
             df.to_sql(name, con, if_exists="replace", index=False)

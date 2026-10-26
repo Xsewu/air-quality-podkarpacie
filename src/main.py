@@ -1,16 +1,6 @@
-"""Jedyny punkt wejścia projektu: liczenie wyników, okno ze stroną i plik .exe.
-
-python -m src.main             – otwiera stronę w oknie; jeśli wyników jeszcze nie ma, najpierw je liczy
-python -m src.main --przelicz  – liczy wszystko od nowa (np. po zmianie miast), potem otwiera okno
-python -m src.main --bez-okna  – tylko liczy (razem z --przelicz albo przy pierwszym uruchomieniu)
-python -m src.main --exe       – buduje dist/Powietrze w Polsce.exe (wymaga: pip install pyinstaller)
-
-Plik .exe zawiera okno i gotową stronę z danymi, więc niczego nie liczy – działa bez Pythona.
-Każdy etap liczenia to osobny moduł z funkcją run(); można je uruchamiać pojedynczo
-(np. python -m src.analyze), jeśli baza db/air.sqlite już istnieje.
-"""
 import argparse
 import ctypes
+import json
 import os
 import shutil
 import subprocess
@@ -18,6 +8,8 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -63,11 +55,55 @@ def compute() -> None:
 
 # --- 2. Okno: lokalny serwer + przeglądarka w trybie aplikacji -------------------------------------
 
+def current_readings() -> dict:
+    """Najnowsze godzinowe PM10/PM2.5 z API GIOŚ dla stacji miast – dla przycisku „Odśwież” na stronie.
+
+    API GIOŚ nie przyjmuje zapytań z przeglądarki (CORS), więc pyta je lokalny serwer. Tylko biblioteka
+    standardowa (urllib), bo plik .exe nie zawiera requests.
+    """
+    def get(path: str) -> dict:
+        request = urllib.request.Request(f"{config.GIOS_API_URL}/{path}", headers={"Accept": "application/ld+json"})
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.load(response)
+
+    stations = json.loads((WEB / "data" / "stacje.json").read_text(encoding="utf-8"))["stacje"]
+    readings = {}
+    for station in stations:
+        sensors = get(f"station/sensors/{station['api_id']}?size=500")["Lista stanowisk pomiarowych dla podanej stacji"]
+        for sensor in sensors:
+            code = sensor["Wskaźnik - kod"]
+            if code not in config.GIOS_API_PM_CODES:
+                continue
+            try:
+                data = get(f"data/getData/{sensor['Identyfikator stanowiska']}?size=500")["Lista danych pomiarowych"]
+            except urllib.error.HTTPError as exc:
+                if exc.code == 400:  # stanowisko ręczne – API nie ma dla niego danych bieżących
+                    continue
+                raise
+            readings.setdefault(station["miasto"], {})[code] = [
+                [d["Data"][:16], d["Wartość"]] for d in data if d["Wartość"] is not None]
+    return readings
+
+
 class QuietHandler(SimpleHTTPRequestHandler):
-    """Serwuje pliki z web/ bez wypisywania każdego żądania w konsoli."""
+    """Serwuje pliki z web/ bez wypisywania każdego żądania w konsoli; /api/biezace pobiera nowe odczyty."""
 
     def log_message(self, *args) -> None:
         pass
+
+    def do_GET(self) -> None:
+        if self.path != "/api/biezace":
+            return super().do_GET()
+        try:
+            body, status = current_readings(), 200
+        except (OSError, KeyError, ValueError) as exc:  # brak internetu albo zmiana w API
+            body, status = {"blad": str(exc)}, 502
+        data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def end_headers(self) -> None:
         # Bez pamięci podręcznej: po przeliczeniu okno zawsze wczytuje nowe app.js i dane
@@ -100,7 +136,7 @@ def wait_until_closed(profile: str) -> bool:
     """
     lock = Path(profile) / "lockfile"
     deadline = time.monotonic() + 30
-    while not lock.exists():                     # przeglądarka jeszcze startuje
+    while not lock.exists():
         if time.monotonic() > deadline:
             return False
         time.sleep(0.5)
@@ -169,8 +205,8 @@ def build_exe() -> None:
     pyinstaller([
         str(Path(__file__)),
         "--name", NAME,
-        "--onefile",                              # jeden plik .exe
-        "--windowed",                             # bez czarnego okna konsoli
+        "--onefile",
+        "--windowed",
         "--icon", str(web / "ikona.ico"),
         "--add-data", f"{web}{os.pathsep}web",    # strona z danymi w środku pliku
         "--paths", str(config.ROOT),              # żeby działał import src.config

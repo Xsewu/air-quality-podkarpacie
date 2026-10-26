@@ -1,1 +1,403 @@
-{"klasy":[{"podzial":"wszystkie","grupa":"wszystkie dni","klasa":"dobra","dni":2931,"udzial_pct":70.72876447876448},{"podzial":"wszystkie","grupa":"wszystkie dni","klasa":"umiarkowana","dni":1062,"udzial_pct":25.627413127413128},{"podzial":"wszystkie","grupa":"wszystkie dni","klasa":"zła","dni":151,"udzial_pct":3.643822393822394},{"podzial":"miasto","grupa":"Gdańsk","klasa":"dobra","dni":820,"udzial_pct":79.15057915057915},{"podzial":"miasto","grupa":"Gdańsk","klasa":"umiarkowana","dni":207,"udzial_pct":19.98069498069498},{"podzial":"miasto","grupa":"Gdańsk","klasa":"zła","dni":9,"udzial_pct":0.8687258687258688},{"podzial":"miasto","grupa":"Katowice","klasa":"dobra","dni":643,"udzial_pct":62.06563706563706},{"podzial":"miasto","grupa":"Katowice","klasa":"umiarkowana","dni":335,"udzial_pct":32.335907335907336},{"podzial":"miasto","grupa":"Katowice","klasa":"zła","dni":58,"udzial_pct":5.598455598455598},{"podzial":"miasto","grupa":"Warszawa","klasa":"dobra","dni":741,"udzial_pct":71.52509652509653},{"podzial":"miasto","grupa":"Warszawa","klasa":"umiarkowana","dni":256,"udzial_pct":24.71042471042471},{"podzial":"miasto","grupa":"Warszawa","klasa":"zła","dni":39,"udzial_pct":3.7644787644787643},{"podzial":"miasto","grupa":"Wrocław","klasa":"dobra","dni":727,"udzial_pct":70.17374517374517},{"podzial":"miasto","grupa":"Wrocław","klasa":"umiarkowana","dni":264,"udzial_pct":25.482625482625483},{"podzial":"miasto","grupa":"Wrocław","klasa":"zła","dni":45,"udzial_pct":4.343629343629344},{"podzial":"sezon","grupa":"grzewczy","klasa":"dobra","dni":1283,"udzial_pct":59.72998137802607},{"podzial":"sezon","grupa":"grzewczy","klasa":"umiarkowana","dni":725,"udzial_pct":33.75232774674115},{"podzial":"sezon","grupa":"grzewczy","klasa":"zła","dni":140,"udzial_pct":6.517690875232774},{"podzial":"sezon","grupa":"letni","klasa":"dobra","dni":1648,"udzial_pct":82.56513026052104},{"podzial":"sezon","grupa":"letni","klasa":"umiarkowana","dni":337,"udzial_pct":16.88376753507014},{"podzial":"sezon","grupa":"letni","klasa":"zła","dni":11,"udzial_pct":0.5511022044088176},{"podzial":"miesiac","grupa":"1","klasa":"dobra","dni":227,"udzial_pct":62.362637362637365},{"podzial":"miesiac","grupa":"1","klasa":"umiarkowana","dni":118,"udzial_pct":32.417582417582416},{"podzial":"miesiac","grupa":"1","klasa":"zła","dni":19,"udzial_pct":5.21978021978022},{"podzial":"miesiac","grupa":"2","klasa":"dobra","dni":179,"udzial_pct":52.64705882352941},{"podzial":"miesiac","grupa":"2","klasa":"umiarkowana","dni":114,"udzial_pct":33.529411764705884},{"podzial":"miesiac","grupa":"2","klasa":"zła","dni":47,"udzial_pct":13.823529411764707},{"podzial":"miesiac","grupa":"3","klasa":"dobra","dni":174,"udzial_pct":46.774193548387096},{"podzial":"miesiac","grupa":"3","klasa":"umiarkowana","dni":153,"udzial_pct":41.12903225806452},{"podzial":"miesiac","grupa":"3","klasa":"zła","dni":45,"udzial_pct":12.096774193548388},{"podzial":"miesiac","grupa":"4","klasa":"dobra","dni":239,"udzial_pct":71.13095238095238},{"podzial":"miesiac","grupa":"4","klasa":"umiarkowana","dni":92,"udzial_pct":27.38095238095238},{"podzial":"miesiac","grupa":"4","klasa":"zła","dni":5,"udzial_pct":1.4880952380952381},{"podzial":"miesiac","grupa":"5","klasa":"dobra","dni":241,"udzial_pct":82.53424657534246},{"podzial":"miesiac","grupa":"5","klasa":"umiarkowana","dni":51,"udzial_pct":17.465753424657535},{"podzial":"miesiac","grupa":"5","klasa":"zła","dni":0,"udzial_pct":0.0},{"podzial":"miesiac","grupa":"6","klasa":"dobra","dni":310,"udzial_pct":87.07865168539325},{"podzial":"miesiac","grupa":"6","klasa":"umiarkowana","dni":46,"udzial_pct":12.92134831460674},{"podzial":"miesiac","grupa":"6","klasa":"zła","dni":0,"udzial_pct":0.0},{"podzial":"miesiac","grupa":"7","klasa":"dobra","dni":338,"udzial_pct":94.9438202247191},{"podzial":"miesiac","grupa":"7","klasa":"umiarkowana","dni":18,"udzial_pct":5.056179775280899},{"podzial":"miesiac","grupa":"7","klasa":"zła","dni":0,"udzial_pct":0.0},{"podzial":"miesiac","grupa":"8","klasa":"dobra","dni":286,"udzial_pct":89.375},{"podzial":"miesiac","grupa":"8","klasa":"umiarkowana","dni":34,"udzial_pct":10.625},{"podzial":"miesiac","grupa":"8","klasa":"zła","dni":0,"udzial_pct":0.0},{"podzial":"miesiac","grupa":"9","klasa":"dobra","dni":234,"udzial_pct":69.64285714285714},{"podzial":"miesiac","grupa":"9","klasa":"umiarkowana","dni":96,"udzial_pct":28.571428571428573},{"podzial":"miesiac","grupa":"9","klasa":"zła","dni":6,"udzial_pct":1.7857142857142858},{"podzial":"miesiac","grupa":"10","klasa":"dobra","dni":280,"udzial_pct":79.54545454545455},{"podzial":"miesiac","grupa":"10","klasa":"umiarkowana","dni":71,"udzial_pct":20.170454545454547},{"podzial":"miesiac","grupa":"10","klasa":"zła","dni":1,"udzial_pct":0.2840909090909091},{"podzial":"miesiac","grupa":"11","klasa":"dobra","dni":225,"udzial_pct":63.20224719101124},{"podzial":"miesiac","grupa":"11","klasa":"umiarkowana","dni":124,"udzial_pct":34.831460674157306},{"podzial":"miesiac","grupa":"11","klasa":"zła","dni":7,"udzial_pct":1.9662921348314606},{"podzial":"miesiac","grupa":"12","klasa":"dobra","dni":198,"udzial_pct":54.395604395604394},{"podzial":"miesiac","grupa":"12","klasa":"umiarkowana","dni":145,"udzial_pct":39.83516483516483},{"podzial":"miesiac","grupa":"12","klasa":"zła","dni":21,"udzial_pct":5.769230769230769}]}
+{
+  "klasy": [
+    {
+      "podzial": "wszystkie",
+      "grupa": "wszystkie dni",
+      "klasa": "dobra",
+      "dni": 2931,
+      "udzial_pct": 70.72876447876448
+    },
+    {
+      "podzial": "wszystkie",
+      "grupa": "wszystkie dni",
+      "klasa": "umiarkowana",
+      "dni": 1062,
+      "udzial_pct": 25.627413127413128
+    },
+    {
+      "podzial": "wszystkie",
+      "grupa": "wszystkie dni",
+      "klasa": "zła",
+      "dni": 151,
+      "udzial_pct": 3.643822393822394
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Gdańsk",
+      "klasa": "dobra",
+      "dni": 820,
+      "udzial_pct": 79.15057915057915
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Gdańsk",
+      "klasa": "umiarkowana",
+      "dni": 207,
+      "udzial_pct": 19.98069498069498
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Gdańsk",
+      "klasa": "zła",
+      "dni": 9,
+      "udzial_pct": 0.8687258687258688
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Katowice",
+      "klasa": "dobra",
+      "dni": 643,
+      "udzial_pct": 62.06563706563706
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Katowice",
+      "klasa": "umiarkowana",
+      "dni": 335,
+      "udzial_pct": 32.335907335907336
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Katowice",
+      "klasa": "zła",
+      "dni": 58,
+      "udzial_pct": 5.598455598455598
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Warszawa",
+      "klasa": "dobra",
+      "dni": 741,
+      "udzial_pct": 71.52509652509653
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Warszawa",
+      "klasa": "umiarkowana",
+      "dni": 256,
+      "udzial_pct": 24.71042471042471
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Warszawa",
+      "klasa": "zła",
+      "dni": 39,
+      "udzial_pct": 3.7644787644787643
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Wrocław",
+      "klasa": "dobra",
+      "dni": 727,
+      "udzial_pct": 70.17374517374517
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Wrocław",
+      "klasa": "umiarkowana",
+      "dni": 264,
+      "udzial_pct": 25.482625482625483
+    },
+    {
+      "podzial": "miasto",
+      "grupa": "Wrocław",
+      "klasa": "zła",
+      "dni": 45,
+      "udzial_pct": 4.343629343629344
+    },
+    {
+      "podzial": "sezon",
+      "grupa": "grzewczy",
+      "klasa": "dobra",
+      "dni": 1283,
+      "udzial_pct": 59.72998137802607
+    },
+    {
+      "podzial": "sezon",
+      "grupa": "grzewczy",
+      "klasa": "umiarkowana",
+      "dni": 725,
+      "udzial_pct": 33.75232774674115
+    },
+    {
+      "podzial": "sezon",
+      "grupa": "grzewczy",
+      "klasa": "zła",
+      "dni": 140,
+      "udzial_pct": 6.517690875232774
+    },
+    {
+      "podzial": "sezon",
+      "grupa": "letni",
+      "klasa": "dobra",
+      "dni": 1648,
+      "udzial_pct": 82.56513026052104
+    },
+    {
+      "podzial": "sezon",
+      "grupa": "letni",
+      "klasa": "umiarkowana",
+      "dni": 337,
+      "udzial_pct": 16.88376753507014
+    },
+    {
+      "podzial": "sezon",
+      "grupa": "letni",
+      "klasa": "zła",
+      "dni": 11,
+      "udzial_pct": 0.5511022044088176
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "1",
+      "klasa": "dobra",
+      "dni": 227,
+      "udzial_pct": 62.362637362637365
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "1",
+      "klasa": "umiarkowana",
+      "dni": 118,
+      "udzial_pct": 32.417582417582416
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "1",
+      "klasa": "zła",
+      "dni": 19,
+      "udzial_pct": 5.21978021978022
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "2",
+      "klasa": "dobra",
+      "dni": 179,
+      "udzial_pct": 52.64705882352941
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "2",
+      "klasa": "umiarkowana",
+      "dni": 114,
+      "udzial_pct": 33.529411764705884
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "2",
+      "klasa": "zła",
+      "dni": 47,
+      "udzial_pct": 13.823529411764707
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "3",
+      "klasa": "dobra",
+      "dni": 174,
+      "udzial_pct": 46.774193548387096
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "3",
+      "klasa": "umiarkowana",
+      "dni": 153,
+      "udzial_pct": 41.12903225806452
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "3",
+      "klasa": "zła",
+      "dni": 45,
+      "udzial_pct": 12.096774193548388
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "4",
+      "klasa": "dobra",
+      "dni": 239,
+      "udzial_pct": 71.13095238095238
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "4",
+      "klasa": "umiarkowana",
+      "dni": 92,
+      "udzial_pct": 27.38095238095238
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "4",
+      "klasa": "zła",
+      "dni": 5,
+      "udzial_pct": 1.4880952380952381
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "5",
+      "klasa": "dobra",
+      "dni": 241,
+      "udzial_pct": 82.53424657534246
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "5",
+      "klasa": "umiarkowana",
+      "dni": 51,
+      "udzial_pct": 17.465753424657535
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "5",
+      "klasa": "zła",
+      "dni": 0,
+      "udzial_pct": 0.0
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "6",
+      "klasa": "dobra",
+      "dni": 310,
+      "udzial_pct": 87.07865168539325
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "6",
+      "klasa": "umiarkowana",
+      "dni": 46,
+      "udzial_pct": 12.92134831460674
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "6",
+      "klasa": "zła",
+      "dni": 0,
+      "udzial_pct": 0.0
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "7",
+      "klasa": "dobra",
+      "dni": 338,
+      "udzial_pct": 94.9438202247191
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "7",
+      "klasa": "umiarkowana",
+      "dni": 18,
+      "udzial_pct": 5.056179775280899
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "7",
+      "klasa": "zła",
+      "dni": 0,
+      "udzial_pct": 0.0
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "8",
+      "klasa": "dobra",
+      "dni": 286,
+      "udzial_pct": 89.375
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "8",
+      "klasa": "umiarkowana",
+      "dni": 34,
+      "udzial_pct": 10.625
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "8",
+      "klasa": "zła",
+      "dni": 0,
+      "udzial_pct": 0.0
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "9",
+      "klasa": "dobra",
+      "dni": 234,
+      "udzial_pct": 69.64285714285714
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "9",
+      "klasa": "umiarkowana",
+      "dni": 96,
+      "udzial_pct": 28.571428571428573
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "9",
+      "klasa": "zła",
+      "dni": 6,
+      "udzial_pct": 1.7857142857142858
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "10",
+      "klasa": "dobra",
+      "dni": 280,
+      "udzial_pct": 79.54545454545455
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "10",
+      "klasa": "umiarkowana",
+      "dni": 71,
+      "udzial_pct": 20.170454545454547
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "10",
+      "klasa": "zła",
+      "dni": 1,
+      "udzial_pct": 0.2840909090909091
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "11",
+      "klasa": "dobra",
+      "dni": 225,
+      "udzial_pct": 63.20224719101124
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "11",
+      "klasa": "umiarkowana",
+      "dni": 124,
+      "udzial_pct": 34.831460674157306
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "11",
+      "klasa": "zła",
+      "dni": 7,
+      "udzial_pct": 1.9662921348314606
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "12",
+      "klasa": "dobra",
+      "dni": 198,
+      "udzial_pct": 54.395604395604394
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "12",
+      "klasa": "umiarkowana",
+      "dni": 145,
+      "udzial_pct": 39.83516483516483
+    },
+    {
+      "podzial": "miesiac",
+      "grupa": "12",
+      "klasa": "zła",
+      "dni": 21,
+      "udzial_pct": 5.769230769230769
+    }
+  ]
+}
