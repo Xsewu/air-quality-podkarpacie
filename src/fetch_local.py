@@ -61,8 +61,3 @@ def run() -> dict[str, pd.DataFrame]:
         "gios_pm25": load_gios_hourly("PM25"),
         "imgw_hourly": load_imgw_hourly(),
     }
-
-
-if __name__ == "__main__":
-    for key, df in run().items():
-        print(f"{key}: {df.shape}")

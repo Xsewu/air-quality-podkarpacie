@@ -161,7 +161,3 @@ def run() -> dict:
         print(f"  {r.klaster}. {r.nazwa}: {r.n_dni_pogodowych} dni, PM10 {r.pm10_srednia}, dni złe {r.dni_zla_pct}%")
     print(f"  ARI (klaster vs klasa jakości): {res['ari']}")
     return report
-
-
-if __name__ == "__main__":
-    run()

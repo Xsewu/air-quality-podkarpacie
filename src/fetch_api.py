@@ -163,8 +163,3 @@ def run() -> dict[str, pd.DataFrame]:
     }
     save_request_log({"GIOŚ": gios}, from_disk)
     return result
-
-
-if __name__ == "__main__":
-    for key, df in run().items():
-        print(f"{key}: {df.shape}")

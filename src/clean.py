@@ -209,7 +209,7 @@ def filter_complete_days(con: sqlite3.Connection) -> None:
 # --- Cały etap -----------------------------------------------------------------------------------
 
 def run(local: dict[str, pd.DataFrame], api: dict[str, pd.DataFrame]) -> None:
-    """Czyści dane z etapów TK02/TK03 i zapisuje je do db/air.sqlite."""
+    """Czyści dane z plików i API i zapisuje je do db/air.sqlite."""
     raw = gios_hourly(local["gios_pm10"], local["gios_pm25"])               # 1
     checked = quality.check(raw)                                              # 2
     flags = checked["flags"]

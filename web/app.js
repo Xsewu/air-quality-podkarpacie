@@ -178,10 +178,10 @@ function pokazPanel(id) {
 }
 
 // --- Panel A: akwizycja danych ----------------------------------------------------------
-// Schemat: 3 źródła (pliki z archiwów TK02, zapytania do API TK03) zbiegają się w jeden strumień
+// Schemat: 3 źródła (pliki z archiwów, zapytania do API) zbiegają się w jeden strumień
 // → surowe pliki → pomiary godzinowe → panel P. Pod schematem podgląd surowych danych (zakładki).
 
-const GRUPY_ZRODEL = [["TK02", "Pliki z archiwów"], ["TK03", "Zapytania do API"]];
+const GRUPY_ZRODEL = [["pliki", "Pliki z archiwów"], ["api", "Zapytania do API"]];
 // Strzałka schematu: linia + grot; rysowana poziomo, w układzie pionowym obracana w CSS
 const GROT = '<svg class="grot" viewBox="0 0 32 12" aria-hidden="true" focusable="false">' +
   '<path class="g-linia" d="M0 6h24"/><path class="g-grot" d="M21 0l11 6-11 6z"/></svg>';
@@ -202,18 +202,18 @@ function probkaHtml(p) {
 // Lewa kolumna schematu: etykiety grup i węzły źródeł. Klasy szyna-* rysują wspólną pionową linię
 // od środka pierwszego do środka ostatniego węzła (każdy wiersz dorysowuje swój odcinek).
 function schematZrodelHtml(zrodla) {
-  const wiersze = GRUPY_ZRODEL.flatMap(([tk, nazwa]) => {
-    const wGrupie = zrodla.filter((z) => z.tk === tk);
-    return wGrupie.length ? [{ tk, nazwa }, ...wGrupie] : [];
+  const wiersze = GRUPY_ZRODEL.flatMap(([grupa, nazwa]) => {
+    const wGrupie = zrodla.filter((z) => z.grupa === grupa);
+    return wGrupie.length ? [{ grupa, nazwa }, ...wGrupie] : [];
   });
   const wezly = wiersze.flatMap((w, i) => (w.id ? [i] : []));
   const [pierwszy, ostatni] = [wezly[0], wezly.at(-1)];
   const szyna = (i) => (pierwszy === ostatni ? "" : i === pierwszy ? "szyna-od" : i === ostatni ? "szyna-do"
     : i > pierwszy && i < ostatni ? "szyna" : "");
   return wiersze.map((w, i) => {
-    if (!w.id) return `<p class="grupa-etykieta ${w.tk.toLowerCase()} ${szyna(i)}"><i aria-hidden="true"></i>${esc(w.nazwa)}</p>`;
+    if (!w.id) return `<p class="grupa-etykieta grupa-${w.grupa} ${szyna(i)}"><i aria-hidden="true"></i>${esc(w.nazwa)}</p>`;
     const domena = new URL(w.url).host;
-    return `<div class="wezel ${w.tk.toLowerCase()} ${szyna(i)}" data-zrodlo="${esc(w.id)}">
+    return `<div class="wezel grupa-${w.grupa} ${szyna(i)}" data-zrodlo="${esc(w.id)}">
         <span class="format">${esc(znacznikFormatu(w))}</span>
         <div class="wezel-tresc">
           <button type="button" class="wezel-nazwa" aria-controls="podglad-${esc(w.id)}" title="Pokaż surowe dane">${esc(w.nazwa)}</button>
@@ -238,7 +238,7 @@ function schematEtapowHtml(etapy) {
 function podgladHtml(zrodla) {
   const zakladki = zrodla.map((z, i) => {
     const [kto, co] = czesciNazwy(z.nazwa);
-    return `<button type="button" role="tab" class="zakladka ${z.tk.toLowerCase()}" id="zakladka-${esc(z.id)}" data-zrodlo="${esc(z.id)}"
+    return `<button type="button" role="tab" class="zakladka grupa-${z.grupa}" id="zakladka-${esc(z.id)}" data-zrodlo="${esc(z.id)}"
       aria-controls="podglad-${esc(z.id)}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">
       <span class="format">${esc(znacznikFormatu(z))}</span><span class="z-nazwa"><b>${esc(kto)}</b> <small>${esc(co)}</small></span></button>`;
   }).join("");
@@ -458,7 +458,7 @@ function renderEksploracja() {
       (s.wsp_zmiennosci_pct == null ? '<td class="brak" title="°C nie ma prawdziwego zera – stosunek odchylenia do średniej nic nie znaczy">–</td>'
                                     : `<td>${fmt(s.wsp_zmiennosci_pct, 0)}%</td>`) +
       `<td>${fmt(s.skosnosc, 2)}</td><td>${fmt(s.kurtoza, 2)}</td>` +
-      `<td>${esc(s.ksztalt)}${s.skosnosc_po_log == null ? "" : ` <span class="jedn">(po log: ${fmt(s.skosnosc_po_log, 2)})</span>`}</td></tr>`).join("") +
+      `<td>${esc(s.ksztalt)}</td></tr>`).join("") +
     "</tbody>";
   $("#przypis-opisowe").textContent = `Pył: ${fmtInt(pm10.n)} dni, pogoda: ${fmtInt(temp.n)} dni. Rozkład normalny: skośność 0, kurtoza 0.`;
 

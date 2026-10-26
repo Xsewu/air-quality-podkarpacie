@@ -56,7 +56,6 @@ def descriptive_stats(data: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, pd.D
             "odch_std": values.std(), "wariancja": values.var(),
             "wsp_zmiennosci_pct": 100 * values.std() / values.mean() if ratio_scale else np.nan,
             "skosnosc": skew, "kurtoza": kurt, "ksztalt": distribution_shape(skew, kurt),
-            "skosnosc_po_log": np.log1p(values).skew() if skew >= 1 and values.min() >= 0 else np.nan,
             "udzial_zer_pct": 100 * (values == 0).mean(),
             # Odchylenie w obrębie jednego miasta / stacji: ile rozrzutu to różnice między miejscami
             "odch_std_w_grupie": np.sqrt(values.groupby(groups).var().mean()),
@@ -97,7 +96,3 @@ def run() -> None:
             print(f"  {name}: {len(df)} wierszy")
     con.close()
     plot_distributions(stats, hist)
-
-
-if __name__ == "__main__":
-    run()

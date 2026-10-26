@@ -273,13 +273,13 @@ th:first-child, td:first-child { text-align: left; }
 .szczegoly-p .tabela-wrap { max-height: 340px; overflow: auto; }
 
 /* Panel A: akwizycja danych – schemat „Droga danych” i podgląd surowych danych.
-   Kolory grup: pliki z archiwów (TK02) turkus, zapytania do API (TK03) błękit; wspólny strumień – akcent.
+   Kolory grup: pliki z archiwów turkus, zapytania do API błękit; wspólny strumień – akcent.
    Układ zależy od szerokości schematu (container queries): wąski – wszystko pod sobą (strzałki w dół),
    od 600 px – źródła | etapy w kolumnie, od 900 px – źródła | etapy w jednym rzędzie. */
-.tk02 { --kolor-tk: var(--brand-3); --na-kolorze-tk: #0c2a47; }
-.tk03 { --kolor-tk: var(--brand-1); --na-kolorze-tk: #ffffff; }
+.grupa-pliki { --kolor-grupy: var(--brand-3); --na-kolorze-grupy: #0c2a47; }
+.grupa-api { --kolor-grupy: var(--brand-1); --na-kolorze-grupy: #ffffff; }
 .format {
-  display: inline-grid; place-items: center; padding: 3px 6px; background: var(--kolor-tk); color: var(--na-kolorze-tk);
+  display: inline-grid; place-items: center; padding: 3px 6px; background: var(--kolor-grupy); color: var(--na-kolorze-grupy);
   font: 700 12px/1.2 ui-monospace, Consolas, "Courier New", monospace; letter-spacing: 0.02em;
 }
 
@@ -301,7 +301,7 @@ th:first-child, td:first-child { text-align: left; }
   font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary);
   border-inline: 1px solid transparent;   /* jak ramka węzła – odcinki wspólnej linii liczone od tej samej krawędzi */
 }
-.grupa-etykieta i { flex: 0 0 auto; width: 10px; height: 10px; background: var(--kolor-tk); }
+.grupa-etykieta i { flex: 0 0 auto; width: 10px; height: 10px; background: var(--kolor-grupy); }
 .wezel + .grupa-etykieta { padding-top: 8px; }
 
 /* Węzeł źródła: znacznik formatu | nazwa, co pobieramy, liczby | odnośnik do strony źródła */
@@ -327,7 +327,7 @@ th:first-child, td:first-child { text-align: left; }
 }
 .wezel-url:hover { color: var(--accent); border-color: var(--border); background: var(--surface-2); }
 .wezel-url:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; color: var(--accent); }
-.wezel:hover { border-color: var(--kolor-tk); }
+.wezel:hover { border-color: var(--kolor-grupy); }
 .wezel.wybrany { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: -1px; }
 
 /* Etapy po zbiegu źródeł; ostatni to odnośnik do panelu P */
@@ -363,7 +363,7 @@ th:first-child, td:first-child { text-align: left; }
   /* dopływ: pozioma linia od węzła do wspólnej linii (podświetlona dla wybranego źródła) */
   .wezel::before {
     content: ""; position: absolute; left: 100%; top: 50%; width: var(--szyna); height: 2px; margin-top: -1px;
-    background: var(--kolor-tk); transform-origin: left;
+    background: var(--kolor-grupy); transform-origin: left;
   }
   .wezel:hover::before, .wezel.wybrany::before { height: 3px; margin-top: -1.5px; background: var(--strumien); }
   /* wspólna linia: każdy wiersz rysuje swój odcinek, razem od środka pierwszego do środka ostatniego węzła */

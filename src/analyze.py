@@ -152,7 +152,3 @@ def run() -> None:
     plot_ranking(results["wyniki_ranking"])
     plot_classes(results["wyniki_klasy"])
     print(f"  wykresy PNG: {config.DATA_PROCESSED.relative_to(config.ROOT)}")
-
-
-if __name__ == "__main__":
-    run()

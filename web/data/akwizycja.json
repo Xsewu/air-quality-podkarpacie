@@ -3,7 +3,7 @@
     {
       "id": "gios",
       "nazwa": "GIOŚ – archiwum pomiarów",
-      "tk": "TK02",
+      "grupa": "pliki",
       "dostep": "plik lokalny",
       "url": "https://powietrze.gios.gov.pl/pjp/archives",
       "znacznik": "XLSX",
@@ -182,7 +182,7 @@
     {
       "id": "imgw",
       "nazwa": "IMGW-PIB – dane synoptyczne",
-      "tk": "TK02",
+      "grupa": "pliki",
       "dostep": "plik lokalny",
       "url": "https://danepubliczne.imgw.pl",
       "znacznik": "CSV",
@@ -485,7 +485,7 @@
     {
       "id": "gios_api",
       "nazwa": "GIOŚ – API jakości powietrza v1",
-      "tk": "TK03",
+      "grupa": "api",
       "dostep": "zapytania HTTP",
       "url": "https://api.gios.gov.pl/pjp-api/v1/rest",
       "znacznik": "JSON-LD",

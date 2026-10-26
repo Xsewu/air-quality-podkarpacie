@@ -117,7 +117,7 @@ def export_acquisition(con) -> None:
     n_gios, n_imgw = len(config.GIOS_STATIONS), len(config.IMGW_STATIONS)
     # „znacznik” – krótki format na schemacie strony, „krotko” – jedna linia „co pobieramy” na schemacie
     sources = [
-        {"id": "gios", "nazwa": "GIOŚ – archiwum pomiarów", "tk": "TK02", "dostep": "plik lokalny",
+        {"id": "gios", "nazwa": "GIOŚ – archiwum pomiarów", "grupa": "pliki", "dostep": "plik lokalny",
          "url": "https://powietrze.gios.gov.pl/pjp/archives", "znacznik": "XLSX",
          "format": "ZIP z plikami XLSX · czas CET, znacznik = koniec godziny",
          "co": f"godzinowe PM10 i PM2.5 z lat {config.YEARS[0]}–{last_year} dla {n_gios} stacji + metadane stacji",
@@ -128,7 +128,7 @@ def export_acquisition(con) -> None:
          "pliki": gios_files,
          "probka": {"typ": "tabela", "opis": f"{last_year}_PM10_1g.xlsx – 6 wierszy nagłówka, potem godziny; kolumny naszych {len(columns) - 1} stacji z ok. {len(top[1]) - 1}",
                     "wiersze": gios_sample}},
-        {"id": "imgw", "nazwa": "IMGW-PIB – dane synoptyczne", "tk": "TK02", "dostep": "plik lokalny",
+        {"id": "imgw", "nazwa": "IMGW-PIB – dane synoptyczne", "grupa": "pliki", "dostep": "plik lokalny",
          "url": "https://danepubliczne.imgw.pl", "znacznik": "CSV",
          "format": "ZIP z plikami CSV bez nagłówka · kodowanie cp1250 · czas UTC",
          "co": f"terminowe (godzinowe) obserwacje z {n_imgw} stacji: temperatura, wiatr, wilgotność, ciśnienie, opad 6-godzinny",
@@ -139,7 +139,7 @@ def export_acquisition(con) -> None:
          "pliki": imgw_files,
          "probka": {"typ": "tabela", "opis": f"s_t_{station}_{last_year}.csv – 13 godzin wokół pierwszego deszczu w pliku, {len(shown)} ze {len(header)} kolumn; WWO6G = status opadu: 8 brak pomiaru (opad mierzony co 6 h), 9 brak zjawiska (nie padało); nazwy z pliku s_t_nagłówek.csv",
                     "wiersze": [[header[i] for i in shown]] + [[row[i].strip() for i in shown] for row in first_rows]}},
-        {"id": "gios_api", "nazwa": "GIOŚ – API jakości powietrza v1", "tk": "TK03", "dostep": "zapytania HTTP",
+        {"id": "gios_api", "nazwa": "GIOŚ – API jakości powietrza v1", "grupa": "api", "dostep": "zapytania HTTP",
          "url": config.GIOS_API_URL, "znacznik": "JSON-LD",
          "format": "JSON-LD (nagłówek Accept: application/ld+json) · stronicowanie page/size",
          "co": "lista stacji, stanowiska pomiarowe i bieżące odczyty PM10/PM2.5 (do 3 dób wstecz) – w panelu 3 na tle historii",
@@ -370,7 +370,3 @@ def run() -> None:
         export_meta(con)
     con.close()
     export_clusters()             # 5
-
-
-if __name__ == "__main__":
-    run()

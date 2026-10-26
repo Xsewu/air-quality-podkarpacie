@@ -35,21 +35,21 @@ NOT_IN_EXE = ["pandas", "numpy", "matplotlib", "sklearn", "scipy", "openpyxl", "
 def compute() -> None:
     # Import wewnątrz funkcji: samo okno (i plik .exe) nie potrzebuje bibliotek do liczenia
     from src import analyze, clean, cluster, eda, export, fetch_api, fetch_local, significance
-    print("[TK02] Dane z plików: archiwa GIOŚ i IMGW")
+    print("Dane z plików: archiwa GIOŚ i IMGW")
     local = fetch_local.run()
-    print("[TK03] Dane z internetu: API GIOŚ")
+    print("Dane z internetu: API GIOŚ")
     api = fetch_api.run()
-    print("[TK04] Przygotowanie danych i zapis do SQLite")
+    print("Przygotowanie danych i zapis do SQLite")
     clean.run(local, api)
-    print("[TK04] Eksploracja danych (EDA)")
+    print("Eksploracja danych (EDA)")
     eda.run()
-    print("[TK04] Pytania 1–4: sezony, pogoda, ranking miast, klasy dni")
+    print("Pytania 1–4: sezony, pogoda, ranking miast, klasy dni")
     analyze.run()
-    print("[TK04] Testy istotności")
+    print("Testy istotności")
     significance.run()
-    print("[TK04] Typy dni pogodowych (klasteryzacja)")
+    print("Typy dni pogodowych (klasteryzacja)")
     cluster.run()
-    print("[TK05] Eksport danych dla strony")
+    print("Eksport danych dla strony")
     export.run()
 
 

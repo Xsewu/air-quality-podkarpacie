@@ -116,7 +116,3 @@ def run() -> None:
             df.to_sql(name, con, if_exists="replace", index=False)
             print(f"  {name}: {len(df)} wierszy")
     con.close()
-
-
-if __name__ == "__main__":
-    run()

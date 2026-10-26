@@ -26,7 +26,7 @@ IMGW_STATIONS = {
     155: "GDAŃSK-ŚWIBNO",
 }
 
-# --- API (TK03) -------------------------------------------------------------
+# --- API -------------------------------------------------------------------
 API_RAW = DATA_RAW / "api"
 # API GIOŚ v1 (JSON-LD); wersję bez /v1 wycofano 30.06.2025
 GIOS_API_URL = "https://api.gios.gov.pl/pjp-api/v1/rest"
@@ -43,7 +43,7 @@ CITIES = {
 }
 GIOS_STATIONS = [c["gios"] for c in CITIES.values()]
 
-# --- Czyszczenie i agregacja (TK04) ------------------------------------------
+# --- Czyszczenie i agregacja ------------------------------------------------
 # Średnia dobowa liczona tylko przy co najmniej 75% ważnych godzin (18 z 24) –
 # kryterium kompletności stosowane w ocenie jakości powietrza (dyrektywa 2008/50/WE).
 MIN_HOURS_PER_DAY = 18
